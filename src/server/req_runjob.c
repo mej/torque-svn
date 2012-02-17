@@ -239,7 +239,12 @@ void *req_runjob(
   if ((pjob->ji_arraystruct != NULL) &&
       (pjob->ji_is_array_template == FALSE))
     {
-    job_array *pa = get_jobs_array(pjob);
+    job_array *pa = get_jobs_array(&pjob);
+
+    if (pjob == NULL)
+      {
+      req_reject(PBSE_JOBNOTFOUND, 0, preq, NULL, "Job unexpectedly deleted");
+      }
     
     if ((pa->ai_qs.slot_limit < 0) ||
         (pa->ai_qs.slot_limit > pa->ai_qs.jobs_running))
@@ -1374,7 +1379,7 @@ static job *chk_job_torun(
     return(NULL);
     }
 
-  if ((pque = get_jobs_queue(pjob)) != NULL)
+  if ((pque = get_jobs_queue(&pjob)) != NULL)
     {
     if (pque->qu_qs.qu_type != QTYPE_Execution)
       {
@@ -1391,6 +1396,8 @@ static job *chk_job_torun(
 
     unlock_queue(pque, __func__, NULL, LOGLEVEL);
     }
+  else if (pjob == NULL)
+    return(NULL);
 
   /* where to execute the job */
 #ifdef ENABLE_BLCR
