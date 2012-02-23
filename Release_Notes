@@ -7,11 +7,13 @@ Software Version 4.0.1
                         ---------- WARNING! ----------
 TORQUE 4.0.0 is not backward compatible with previous versions of TORQUE. 
 When you upgrade to TORQUE 4.0.0 all MOM and server daemons must be 
-upgraded at the same time. The job format is compatible between 4.0.0 
-and previous versions of TORQUE. Any queued jobs will upgrade to the 
-new version with the exception of job arrays in versions 2.4 and earlier 
-of TORQUE. See the Upgrading and Backward Compatibility section of this 
-document for more details.
+upgraded at the same time. 
+
+The job format is compatible between 4.0.0 and previous versions of TORQUE. 
+Any queued jobs will upgrade to the new version with the exception of 
+job arrays in versions 2.4 and earlier of TORQUE. See the Upgrading and 
+Backward Compatibility section of this document for more details. It is not
+recommended to upgrade TORQUE while jobs are in a running state.
 
 *******************************************************
 
@@ -168,7 +170,7 @@ Running trqauthd
 trqauthd MUST be run as root. It must be running on any host where TORQUE client commands 
 will execute.
 
-By default trqauthd is installed to /usr/local/bin.
+By default trqauthd is installed to /usr/local/sbin.
 
 trqauthd can be invoked directly from the command line or by the use of init.d scripts 
 which are located in the contrib/init.d directory of the TORQUE source.

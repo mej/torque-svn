@@ -1,4 +1,4 @@
-Torque:  New autoconf / automake realisation
+TORQUE 4.0.0:  New autoconf / automake realisation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 OpenPBS - and hence Torque - was using a rather old autoconf setup together
 with several hand-made makefiles.  Both had a lot of problems:  missing
@@ -6,8 +6,10 @@ DESTDIR support, included chowns and - last but not least - the configure.in
 was not compileable by a decent autoconf.
 
 This version now includes a partly rewritten autoconf script and was changed
-to use automake and libtool.  You need at least automake-1.5, libtool-1.4 and
-autoconf-2.53 to regenerate the buildsystem.
+to use automake and libtool.  For TORQUE 4.0.0 you need at least automake-1.11, 
+libtool-2.2.6 and autoconf-2.63 to regenerate the buildsystem. Note that is you
+are building from a downloaded tar ball the configure and other make files
+are included and you can build with older versions of these tools.
 
 Please be aware, that the behaviour of configure has changed:
 - server, mom, clients, gui and Tcl/Tk are _enabled_ by default
@@ -44,3 +46,5 @@ above mentioned versions of these tools.
 
 				Karsten Petersen, Nov 2003 - Feb 2004
 				 <kapet@hrz.tu-chemnitz.de>
+
+         Updated by Adaptive Computing, February 2012
