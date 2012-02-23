@@ -259,6 +259,11 @@ follow the directions CAREFULLY.
 
 Also consider additional considerations in README.building_40.
 
+Note that you may need to install libssl-dev in order for the source to make successfully.
+Specifically, the build system is looking for libssl.so and libcrypto.so. For non-RPM 
+setups you may need to make a symbolic link from the ssl and crypto libraries to the respective
+.so names.
+
 Installation instructions can also be found at http://www.clusterresources.com/products/torque/docs/
 
 -------------------
