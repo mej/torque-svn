@@ -313,6 +313,7 @@ extern void send_update_soon();
 extern int find_file(char *, char *);
 extern char  mom_host[];
 extern int             MOMNvidiaDriverVersion;
+extern int  use_nvidia_gpu;
 #endif  /* NVIDIA_GPUS */
 
 
@@ -1017,7 +1018,7 @@ stat_record stats[] = {
 void log_nvml_error(
   nvmlReturn_t  rc,
   char*         gpuid,
-  char*         id)
+  const char*   id)
   {
 
   switch (rc)
@@ -1115,11 +1116,28 @@ int init_nvidia_nvml()
   static char id[] = "init_nvidia_nvml";
 
   nvmlReturn_t  rc;
+  unsigned int      device_count;
 
   rc = nvmlInit();
 
   if (rc == NVML_SUCCESS)
-    return (TRUE);
+    {
+    rc = nvmlDeviceGetCount(&device_count);
+    if (rc == NVML_SUCCESS)
+      {
+      if ((int)device_count > 0)
+        return (TRUE);
+
+      sprintf(log_buffer,"No Nvidia gpus detected\n");
+      log_ext(-1, id, log_buffer, LOG_DEBUG);
+
+      /* since we detected no gpus, shut down nvml */
+
+      shut_nvidia_nvml();
+
+      return (FALSE);
+      }
+    }
 
   log_nvml_error (rc, NULL, id);
 
@@ -1138,6 +1156,9 @@ int shut_nvidia_nvml()
   static char id[] = "shut_nvidia_nvml";
 
   nvmlReturn_t  rc;
+
+  if (!use_nvidia_gpu)
+    return (TRUE);
 
   rc = nvmlShutdown();
 
@@ -1308,7 +1329,7 @@ static int check_nvidia_version_file()
  * Function to determine if nvidia-smi is setup correctly
  */
 #ifdef NVIDIA_GPUS
-static int check_nvidia_setup()
+int check_nvidia_setup()
   {
 #ifndef NVML_API
   int  rc;
@@ -3214,6 +3235,11 @@ int add_gpu_status(
 
   {
 #ifdef NVIDIA_GPUS
+
+  /* if we have no Nvidia gpus or nvidia-smi don't send gpu status */
+  if (!use_nvidia_gpu)
+    return(PBSE_NONE);
+
   copy_to_end_of_dynamic_string(mom_status, START_GPU_STATUS);
 
 #ifdef NVML_API
