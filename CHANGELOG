@@ -20,6 +20,11 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       file by using the configure option --without-loadlibfile
   e - move some the the main loop functionality to the threapool in order to increase
       responsiveness.
+  b - Fixed a bug where Moab was using the option SYNCJOBID=TRUE which allows Moab
+      to create the job ids in TORQUE. With this in place if TORQUE were terminated
+      it would delete all jobs submitted through msub when pbs_server was restarted.
+      This fix recovers all jobs whether submitted with msub or qsub when pbs_server
+      restarts.
 
 4.0.0
   e - make a threadpool for TORQUE server. The number of threads is 
