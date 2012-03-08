@@ -843,7 +843,9 @@ void log_record(
      * if we can't open this then we're going to have a nice surprise failure */
     if (logfile != NULL)
       {
+      pthread_mutex_unlock(log_mutex);
       log_err(rc, "log_record", "PBS cannot write to its log");
+      pthread_mutex_lock(log_mutex);
       fclose(logfile);
       }
     logfile = savlog;
