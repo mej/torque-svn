@@ -30,7 +30,7 @@ dnl added library functionality to testing
 dnl by John Rosenquist (jrosenquist@adaptivecomputing.com)
 
 AC_PREREQ(2.53)
-AC_INIT([torque], [4.0.1], [torqueusers@supercluster.org])
+AC_INIT([torque], [4.0.0], [torqueusers@supercluster.org])
 AC_REVISION($Revision$)
 AC_CONFIG_SRCDIR([src/cmds/qrun.c])
 AC_CONFIG_AUX_DIR([buildutils])
@@ -94,7 +94,7 @@ dnl ##########################################################################
 dnl Do not install load library path in /etc/ld.so.conf.d
 
 AC_ARG_WITH(loadlibfile,
-   [AS_HELP_STRING([--without-loadlibfile], [ (Disable automatic install of entry to ld.so.conf.d (default=yes)])], [have_loadlibfile=no], [have_loadlibfile=yes])
+   [AS_HELP_STRING([--with-loadlibfile], [ (Enable automatic install of libtorqueue.conf entry to ld.so.conf.d (default=no)])], [have_loadlibfile=yes], [have_loadlibfile=no])
 AC_SUBST(have_loadlibfile)
 
 dnl
@@ -357,6 +357,7 @@ m4_ifdef([AM_SILENT_RULES],[
     src/lib/Libutils/test/u_tree/Makefile
     src/lib/Libutils/test/u_users/Makefile
     src/lib/Libutils/test/u_xml/Makefile
+    src/lib/test/Makefile
     src/momctl/test/Makefile
     src/momctl/test/momctl/Makefile
     src/resmom/test/Makefile
@@ -510,18 +511,6 @@ AC_ARG_ENABLE(qsub-keep-override, [
   *)   AC_MSG_ERROR(--enable-qsub-keep-override cannot take a value) ;;
 esac])dnl
 
-dnl
-dnl  ######################################################################
-dnl  No SIG_CHLD mode?
-dnl
-AC_MSG_CHECKING([whether to turn on the NO_SIGCHLD flag])
-AC_ARG_ENABLE(nochildsignal,
-    [  --enable-nochildsignal  turn on the NO_SIGCHLD flag],
-    enable_nochildsignal=$enableval, enable_nochildsignal=no)
-AC_MSG_RESULT($enable_nochildsignal)
-if test "x$enable_nochildsignal" = "xyes" ; then
-	AC_DEFINE(NO_SIGCHLD, 1, [turns on the compilation of NO_SIGCHLD code])
-fi
 
 
 dnl
@@ -1117,6 +1106,25 @@ fi
 if test "x$nvmllib" != "xnone" && test "x$nvmlinclude" == "xnone" ;then
   AC_MSG_ERROR([--with-nvml-include needs to be specified])
 fi
+
+dnl 
+dnl Tell TORQUE about any ALPS helper libraries
+dnl
+ALPS_LIBS=""
+
+AC_ARG_WITH(alpsstatus_lib,
+    [ --with-alpsstatus-lib=LIB library path for an alps status library],
+    alps_lib="$withval",
+    alps_lib=none)
+
+if test "x$alps_lib" != "xnone" ; then
+  ALPS_LIBS="$ALPS_LIBS -l$alps_lib `xml2-config --libs`"
+dnl  MOMLIBS="$MOMLIBS $ALPS_LIBS"
+  AM_CFLAGS="$AMCFLAGS `xml2-config --cflags`"
+  AC_DEFINE(USE_ALPS_LIB, 1, [Define this to use a plugin ALPS reporting library])
+fi
+
+
 
 dnl
 dnl enable logging of x attributes for accounting
@@ -2004,6 +2012,8 @@ dnl  Output
 dnl
 
 AC_CREATE_GENERIC_CONFIG([pbs],[-ltorque])
+
+AC_SUBST(ALPS_LIBS)
 
 dnl these are quoted, and this removes them
 SPEC_NAME=$PACKAGE_TARNAME
