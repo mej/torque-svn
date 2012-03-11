@@ -844,6 +844,7 @@ void close_conn(
   int has_mutex) /* I */
 
   {
+/*  int rc;*/
   char log_message[LOG_BUF_SIZE];
   if ((sd < 0) || (max_connection <= sd))
     {
@@ -860,12 +861,16 @@ void close_conn(
     snprintf(log_message, LOG_BUF_SIZE, "%s: svr_conn[%d] is idle", __func__, sd);
     log_event(PBSEVENT_SYSTEM,PBS_EVENTCLASS_NODE,"close_conn",log_message);
 
-/*    close(sd);
-    svr_conn[sd].cn_addr = 0;
-    svr_conn[sd].cn_handle = -1;
-    svr_conn[sd].cn_active = Idle;
-    svr_conn[sd].cn_func = (void *(*)())0;
-    svr_conn[sd].cn_authen = 0;*/
+/*    rc = close(sd);
+    if (rc == 0)
+      {
+      snprintf(log_message, LOG_BUF_SIZE, "closed a valid socket [%d]", sd);
+      svr_conn[sd].cn_addr = 0;
+      svr_conn[sd].cn_handle = -1;
+      svr_conn[sd].cn_active = Idle;
+      svr_conn[sd].cn_func = (void *(*)())0;
+      svr_conn[sd].cn_authen = 0;
+      }*/
     
     pthread_mutex_unlock(svr_conn[sd].cn_mutex);
     return;
