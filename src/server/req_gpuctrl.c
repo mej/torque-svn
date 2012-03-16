@@ -259,6 +259,7 @@ int req_gpuctrl_svr(
   else
     {
     req_reject(PBSE_UNKREQ, 0, preq, NULL, "Failed to get connection to mom");
+    svr_disconnect(conn);
     }
 
 #else
