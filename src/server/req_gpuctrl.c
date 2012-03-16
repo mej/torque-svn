@@ -136,7 +136,6 @@ int req_gpuctrl_svr(
   int    local_errno = 0;
   struct pbsnode *pnode = NULL;
   int    gpuidx = -1;
-  int    rc = 0;
   int    conn;
 #endif  /* NVIDIA_GPUS */
 
@@ -255,7 +254,7 @@ int req_gpuctrl_svr(
       {
       req_reject(rc, 0, preq, NULL, NULL);
       }
-    svr_disconnect(cntl->sc_conn);
+    svr_disconnect(conn);
     }
   else
     {
@@ -278,6 +277,7 @@ int req_gpuctrl_svr(
     }
 
   req_reject(PBSE_NOSUP, 0, preq, NULL, NULL);
+  svr_disconnect(conn);
 
 #endif  /* NVIDIA_GPUS */
 
