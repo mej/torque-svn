@@ -126,7 +126,6 @@ extern int  LOGLEVEL;
 /* External Functions Called */
 
 void initialize_connections_table();
-extern void process_request(int);
 
 extern time_t time(time_t *);
 
@@ -149,7 +148,7 @@ pthread_mutex_t *num_connections_mutex = NULL;
 static fd_set   *GlobalSocketReadSet = NULL;
 pthread_mutex_t *global_sock_read_mutex = NULL;
 
-static void *(*read_func[2])(void *);
+void *(*read_func[2])(void *);
 
 pthread_mutex_t *netrates_mutex = NULL;
 pthread_mutex_t *nc_list_mutex  = NULL;
@@ -564,10 +563,10 @@ int wait_request(
 
   for (i = 0; (i < max_connection) && (n != 0); i++)
     {
-    pthread_mutex_lock(svr_conn[i].cn_mutex);
 
     if (FD_ISSET(i, SelectSet))
       {
+      pthread_mutex_lock(svr_conn[i].cn_mutex);
       /* this socket has data */
       n--;
 
@@ -609,8 +608,6 @@ int wait_request(
         log_err(-1, id, tmpLine);
         }
       }
-    else
-      pthread_mutex_unlock(svr_conn[i].cn_mutex);
     } /* END for i */
 
   free(SelectSet);

@@ -94,6 +94,7 @@
 #include "pbs_error.h"
 #include "../lib/Libdis/lib_dis.h" /* DIS_tcp_setup */
 #include "pbsd_main.h" /* process_pbs_server_port */
+#include "process_request.h" /*process_request */
 
 /* Global Data */
 
@@ -195,7 +196,7 @@ static int contact_sched(
     pbs_scheduler_addr,
     pbs_scheduler_port,
     PBS_SOCK_INET,
-    process_pbs_server_port);
+    process_pbs_server_port_scheduler);
 
   pthread_mutex_lock(svr_conn[sock].cn_mutex);
 
@@ -289,6 +290,12 @@ int schedule_jobs(void)
   return(1);
   }  /* END schedule_jobs() */
 
+void *start_process_request(void *vp)
+  {
+  int sock = *(int *)vp;
+  process_request(sock);
+  return(NULL);
+  }
 
 /*
  * contact_listener - open connection to the listener and send it a command
@@ -347,7 +354,7 @@ static int contact_listener(
     listener_conns[l_idx].address,
     listener_conns[l_idx].port,
     PBS_SOCK_INET,
-    process_request);
+    start_process_request);
 
   pthread_mutex_lock(svr_conn[sock].cn_mutex);
 

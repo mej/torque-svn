@@ -55,7 +55,7 @@ void encode_used(job *pjob, int perm, tlist_head *phead);
 
 void encode_flagged_attrs(job *pjob, int perm, tlist_head *phead);
 
-void req_stat_job(struct batch_request *preq);
+int mom_req_stat_job(struct batch_request *preq);
 
 /* static int del_files(struct batch_request *preq, char *HDir, int setuserenv, char **pbadfile); */
 

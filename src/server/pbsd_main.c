@@ -132,6 +132,8 @@
 #include "svr_func.h" /* get_svr_attr_* */
 #include "../lib/Libifl/lib_ifl.h" /* get_port_from_server_name_file */
 #include "node_manager.h" /* svr_is_request */
+#include "../lib/Libnet/lib_net.h" /* start_listener_addrinfo */
+#include "process_request.h" /* process_request */
 
 #define TASK_CHECK_INTERVAL    10
 #define RETRY_ROUTING_INTERVAL 45
@@ -292,7 +294,8 @@ int                     allow_any_mom = FALSE;
 int                     array_259_upgrade = FALSE;
 
 
-
+/* Globals to thread the accept port */
+pthread_t      accept_thread_id = -1;
 /*
  * need_y_response - on create/clean initialization that would delete
  * information, obtain the operator approval first.
@@ -370,16 +373,13 @@ static void need_y_response(
 
 
 
-void *process_pbs_server_port(
-     
-  void *new_sock)
- 
+int process_pbs_server_port(
+  int sock)
   {
   int          proto_type;
-  int          rc;
+  int          rc = PBSE_NONE;
   int          version;
   char         log_buf[LOCAL_LOG_BUF_SIZE];
-  int sock = *(int *)new_sock;
   
   DIS_tcp_setup(sock);
   
@@ -389,7 +389,7 @@ void *process_pbs_server_port(
     {
     case PBS_BATCH_PROT_TYPE:
       
-      process_request(new_sock);
+      rc = process_request(sock);
       
       break;
       
@@ -404,7 +404,7 @@ void *process_pbs_server_port(
         break;
         }
       
-      svr_is_request(sock,version,NULL);
+      rc = svr_is_request(sock,version);
       
       break;
 
@@ -429,14 +429,43 @@ void *process_pbs_server_port(
         }
 
       close_conn(sock, FALSE);
+      rc = PBSE_SOCKET_DATA;
 
       break;
       }
     }
 
-  return(NULL);
+  return rc;
   }  /* END process_pbs_server_port() */
 
+/* process_pbs_server_port_scheduler
+ * This function is a wrapper for process_pbs_server_port
+ * whose signature has been changed to make torques
+ * accept process fully multithreaded. 
+ * This will be run from wait request after being scheduled
+ * by contact_sched
+ */
+void *process_pbs_server_port_scheduler(void *new_sock)
+  {
+  int sock = *(int *)new_sock;
+
+  process_pbs_server_port(sock);
+  return(NULL);
+  }
+
+void *start_process_pbs_server_port(void *new_sock)
+  {
+  int sock = *(int *)new_sock;
+  int rc = PBSE_NONE;
+
+  free(new_sock);
+  while (rc == PBSE_NONE)
+    {
+    rc = process_pbs_server_port(sock);
+    }
+  /* Thread exit */
+  return(NULL);
+  }
 
 
 
@@ -1083,6 +1112,42 @@ void *handle_scheduler_contact(
 
 
 
+void *start_accept_listener()
+  {
+  start_listener_addrinfo(server_name, pbs_server_port_dis, start_process_pbs_server_port);
+  return NULL;
+  }
+
+
+void start_accept_thread()
+  {
+  pthread_attr_t accept_attr;
+  if ((pthread_attr_init(&accept_attr)) != 0)
+    {
+    perror("pthread_attr_init failed. Could not start accept thread");
+    log_err(-1, msg_daemonname,"pthread_attr_init failed. Could not start accept thread");
+    }
+  else if ((pthread_attr_setdetachstate(&accept_attr, PTHREAD_CREATE_DETACHED) != 0))
+    {
+    perror("pthread_attr_setdetatchedstate failed. Could not start accept thread");
+    log_err(-1, msg_daemonname,"pthread_attr_setdetachedstate failed. Could not start accept thread");
+    }
+  else if ((pthread_create(&accept_thread_id, &accept_attr, start_accept_listener, NULL)) != 0)
+    {
+    perror("could not start listener for pbs_server");
+    log_err(-1, msg_daemonname, "Failed to start listener for pbs_server");
+    }
+  }
+
+
+void monitor_accept_thread()
+  {
+  if (pthread_kill(accept_thread_id, 0) == ESRCH)
+    {
+    start_accept_thread();
+    }
+  }
+
 
 
 void main_loop(void)
@@ -1186,10 +1251,14 @@ void main_loop(void)
   if (wait_for_moms_hierarchy == TRUE)
     try_hellos = time_now + HELLO_WAIT_TIME;
 
+  start_accept_thread();
+
   while (state != SV_STATE_DOWN)
     {
     /* first process any task whose time delay has expired */
     last_jobstat_time = time_now = time(NULL);
+
+    monitor_accept_thread();
 
     if (try_hellos <= time_now)
       send_any_hellos_needed();
@@ -1305,7 +1374,10 @@ void main_loop(void)
     pthread_mutex_unlock(server.sv_jobstates_mutex);
 
     get_svr_attr_l(SRV_ATR_State, &state);
+    usleep(100);
     }    /* END while (*state != SV_STATE_DOWN) */
+  
+  pthread_kill(accept_thread_id, 9);
 
   svr_save(&server, SVR_SAVE_FULL); /* final recording of server */
 
@@ -1706,7 +1778,8 @@ int main(
     msg_daemonname,
     log_buf);
 
-  if (init_network(pbs_server_port_dis, process_pbs_server_port) != 0)
+
+  if (init_network(63000, start_process_pbs_server_port) != 0)
     {
     perror("pbs_server: network");
 
@@ -1715,7 +1788,7 @@ int main(
     exit(3);
     }
 
-  if (init_network(0, process_pbs_server_port) != 0)
+  if (init_network(0, start_process_pbs_server_port) != 0)
     {
     perror("pbs_server: unix domain socket");
 
@@ -1723,6 +1796,7 @@ int main(
 
     exit(3);
     }
+
 
 #if (PLOCK_DAEMONS & 1)
   plock(PROCLOCK);

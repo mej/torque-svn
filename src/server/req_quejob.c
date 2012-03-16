@@ -466,17 +466,13 @@ int set_node_attr(
  *
  */
 
-void *req_quejob(
-
-  void *vp) /* ptr to the decoded request   */
-
+int req_quejob(
+    struct batch_request *preq)
   {
-  struct batch_request *preq = (struct batch_request *)vp;
-
   int                   created_here = 0;
   int                   attr_index;
   int                   sock = preq->rq_conn;
-  int                   rc;
+  int                   rc = PBSE_NONE;
   /* set basic (user) level access permission */
   int                   resc_access_perm = ATR_DFLAG_USWR | ATR_DFLAG_Creat;
   int                   i;
@@ -521,14 +517,12 @@ void *req_quejob(
   else if (preq->rq_ind.rq_queuejob.rq_jid[0] != '\0')
     {
     /* FAILURE */
-
     /* a job id is not allowed from a client */
-
-    log_err(errno, __func__, "job id not allowed from client");
-
-    req_reject(PBSE_IVALREQ, 0, preq, NULL, "job not allowed from client");
-
-    return(NULL);
+    rc = PBSE_CLIENT_INVALID;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "job id not allowed from client");
+    log_err(rc, __func__, log_buf);
+    req_reject(PBSE_IVALREQ, 0, preq, NULL, log_buf);
+    return rc;
     }
   else
     {
@@ -605,10 +599,9 @@ void *req_quejob(
     if (svr_save(&server, SVR_SAVE_QUICK))
       {
       /* FAILURE */
-
-      req_reject(PBSE_INTERNAL, 0, preq, NULL, NULL);
-
-      return(NULL);
+      rc = PBSE_CAN_NOT_SAVE_FILE;
+      req_reject(rc, 0, preq, NULL, "Server file save failed");
+      return rc;
       }
     }
 
@@ -631,13 +624,11 @@ void *req_quejob(
     {
     /* server will reject queue request if job already exists */
 
-    log_err(errno, __func__, "cannot queue new job, job already exists");
-
-    req_reject(PBSE_JOBEXIST, 0, preq, NULL, NULL);
-
+    rc = PBSE_JOBEXIST;
+    log_err(rc, __func__, "cannot queue new job, job already exists");
+    req_reject(rc, 0, preq, NULL, NULL);
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return(NULL);
+    return rc;
     }
 
   /* find requested queue, is it there? */
@@ -663,11 +654,10 @@ void *req_quejob(
     {
     /* FAILURE */
 
-    log_err(-1, __func__, "requested queue not found");
-
-    req_reject(rc, 0, preq, NULL, "cannot locate queue"); /* not there   */
-
-    return(NULL);
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "requested queue not found");
+    log_err(-1, __func__, log_buf);
+    req_reject(rc, 0, preq, NULL, log_buf); /* not there   */
+    return rc;
     }
 
   /*
@@ -696,10 +686,14 @@ void *req_quejob(
           if (pc <= basename)
             {
             /* FAILURE */
-            unlock_queue(pque, "req_quejob", "job file corrupt", LOGLEVEL);
-            log_err(errno, __func__, "job file is corrupt");
-            req_reject(PBSE_INTERNAL, 0, preq, NULL, "job file is corrupt");
-            return(NULL);
+            rc = PBSE_JOB_FILE_CORRUPT;
+            snprintf(log_buf, LOCAL_LOG_BUF_SIZE,
+                "job file %s corrupt (%d - %s)",
+                namebuf, errno, strerror(errno));
+            unlock_queue(pque, __func__, log_buf, LOGLEVEL);
+            log_err(rc, __func__, log_buf);
+            req_reject(rc, 0, preq, NULL, log_buf);
+            return rc;
             }
           }
 
@@ -708,10 +702,14 @@ void *req_quejob(
       else
         {
         /* FAILURE */
-        unlock_queue(pque, "req_quejob", "cannot create job file", LOGLEVEL);
-        log_err(errno, __func__, "cannot create job file");
-        req_reject(PBSE_SYSTEM, 0, preq, NULL, "cannot open new job file");
-        return(NULL);
+        rc = PBSE_CAN_NOT_SAVE_FILE;
+        snprintf(log_buf, LOCAL_LOG_BUF_SIZE,
+            "cannot create job file %s (%d - %s)",
+            namebuf, errno, strerror(errno));
+        unlock_queue(pque, __func__, log_buf, LOGLEVEL);
+        log_err(rc, __func__, log_buf);
+        req_reject(PBSE_SYSTEM, 0, preq, NULL, log_buf);
+        return rc;
         }
       }
     }
@@ -724,11 +722,15 @@ void *req_quejob(
   if ((pj = job_alloc()) == NULL)
     {
     /* FAILURE */
-    unlock_queue(pque, "req_quejob", "cannot alloc new job", LOGLEVEL);
-    log_err(errno, __func__, "cannot alloc new job");
+    rc = PBSE_MEM_MALLOC;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE,
+        "can not alloc memory for new job %s - (%d - %s)",
+        namebuf, errno, strerror(errno));
+    unlock_queue(pque, __func__, log_buf, LOGLEVEL);
+    log_err(rc, __func__, log_buf);
     unlink(namebuf);
-    req_reject(PBSE_SYSTEM, 0, preq, NULL, "cannot alloc new job structure");
-    return(NULL);
+    req_reject(PBSE_SYSTEM, 0, preq, NULL, log_buf);
+    return rc;
     }
 
   strcpy(pj->ji_qs.ji_jobid, jid);
@@ -773,10 +775,11 @@ void *req_quejob(
     if ((pdef->at_flags & resc_access_perm) == 0)
       {
       /* FAILURE */
-      unlock_queue(pque, "req_quejob", "attr ro", LOGLEVEL);
+      rc = PBSE_ATTRRO;
+      unlock_queue(pque, __func__, "attr ro", LOGLEVEL);
       job_purge(pj);
-      reply_badattr(PBSE_ATTRRO, 1, psatl, preq);
-      return(NULL);
+      reply_badattr(rc, 1, psatl, preq);
+      return rc;
       }
 
     /* special gpu case
@@ -808,11 +811,11 @@ void *req_quejob(
         if (rc != 0)
           {
           /* FAILURE */
-          unlock_queue(pque, "req_quejob", "gpus attribute error", LOGLEVEL);
+          unlock_queue(pque, __func__, "gpus attribute error", LOGLEVEL);
           /* any other error is fatal */
           job_purge(pj);
           reply_badattr(rc, 1, psatl, preq);
-          return(NULL);
+          return rc;
           }
         }
       pdef = &job_attr_def[attr_index];
@@ -840,20 +843,20 @@ void *req_quejob(
         if (pque->qu_qs.qu_type == QTYPE_Execution)
           {
           /* FAILURE */
-          unlock_queue(pque, "req_quejob", "bad attr", LOGLEVEL);
+          unlock_queue(pque, __func__, "bad attr", LOGLEVEL);
           job_purge(pj);
           reply_badattr(rc, 1, psatl, preq);
-          return(NULL);
+          return rc;
           }
         }
       else
         {
         /* FAILURE */
-        unlock_queue(pque, "req_quejob", "random error", LOGLEVEL);
+        unlock_queue(pque, __func__, "random error", LOGLEVEL);
         /* any other error is fatal */
         job_purge(pj);
         reply_badattr(rc, 1, psatl, preq);
-        return(NULL);
+        return rc;
         }
       }    /* END if (rc != 0) */
 
@@ -881,10 +884,10 @@ void *req_quejob(
 
       if (rc)
         {
-        unlock_queue(pque, "req_quejob", "attr exec fail", LOGLEVEL);
+        unlock_queue(pque, __func__, "attr exec fail", LOGLEVEL);
         job_purge(pj);
         req_reject(rc, i, preq, NULL, "cannot execute attribute action");
-        return(NULL);
+        return rc;
         }
       }
     }    /* END for (i) */
@@ -922,10 +925,11 @@ void *req_quejob(
       if ((pj->ji_wattr[JOB_ATR_priority].at_val.at_long < -1024) ||
           (pj->ji_wattr[JOB_ATR_priority].at_val.at_long > 1024))
         {
-        unlock_queue(pque, "req_quejob", "invalid job priority", LOGLEVEL);
+        rc = PBSE_BADATVAL;
+        unlock_queue(pque, __func__, "invalid job priority", LOGLEVEL);
         job_purge(pj);
-        req_reject(PBSE_BADATVAL, 0, preq, NULL, "invalid job priority");
-        return(NULL);
+        req_reject(rc, 0, preq, NULL, "invalid job priority");
+        return rc;
         }
       }
 
@@ -951,16 +955,16 @@ void *req_quejob(
         {
         pthread_mutex_unlock(tmpjob->ji_mutex);
 
-        unlock_queue(pque, "req_quejob", "job duplication", LOGLEVEL);
+        unlock_queue(pque, __func__, "job duplication", LOGLEVEL);
         /* not unique, reject job */
         job_purge(pj);
-        
+       
+        rc = PBSE_JOBEXIST; 
         snprintf(log_buf,sizeof(log_buf),
           "Job with id %s already exists, cannot set job id\n",
           pj->ji_qs.ji_jobid);
-        req_reject(PBSE_JOBEXIST,0,preq,NULL,log_buf);
-        
-        return(NULL);
+        req_reject(rc,0,preq,NULL,log_buf);
+        return rc;
         }
       else
         {
@@ -1182,10 +1186,11 @@ void *req_quejob(
     if ((pj->ji_wattr[JOB_ATR_outpath].at_val.at_str == NULL) ||
         (pj->ji_wattr[JOB_ATR_errpath].at_val.at_str == NULL))
       {
-      unlock_queue(pque, "req_quejob", "no output/error file", LOGLEVEL);
+      rc = PBSE_NOATTR;
+      unlock_queue(pque, __func__, "no output/error file", LOGLEVEL);
       job_purge(pj);
-      req_reject(PBSE_NOATTR, 0, preq, NULL, "no output/error file specified");
-      return(NULL);
+      req_reject(rc, 0, preq, NULL, "no output/error file specified");
+      return rc;
       }
 
     /*
@@ -1257,10 +1262,11 @@ void *req_quejob(
             preq->rq_user,
             pj->ji_wattr[JOB_ATR_account].at_val.at_str) == 0)
         {
-        unlock_queue(pque, "req_quejob", "invalid account", LOGLEVEL);
+        rc = PBSE_BADACCT;
+        unlock_queue(pque, __func__, "invalid account", LOGLEVEL);
         job_purge(pj);
-        req_reject(PBSE_BADACCT, 0, preq, NULL, "invalid account");
-        return(NULL);
+        req_reject(rc, 0, preq, NULL, "invalid account");
+        return rc;
         }
       }
     else
@@ -1277,10 +1283,11 @@ void *req_quejob(
       if (pj->ji_wattr[JOB_ATR_account].at_val.at_str == 0)
         {
         /* no default found */
-        unlock_queue(pque, "req_quejob", "no default account", LOGLEVEL);
+        rc = PBSE_BADACCT;
+        unlock_queue(pque, __func__, "no default account", LOGLEVEL);
         job_purge(pj);
-        req_reject(PBSE_BADACCT, 0, preq, NULL, "no default account available");
-        return(NULL);
+        req_reject(rc, 0, preq, NULL, "no default account available");
+        return rc;
         }
       }
 
@@ -1294,21 +1301,24 @@ void *req_quejob(
 
     if (!(pj->ji_wattr[JOB_ATR_job_owner].at_flags & ATR_VFLAG_SET))
       {
-      unlock_queue(pque, "req_quejob", "job owner not set", LOGLEVEL);
+      rc = PBSE_IVALREQ;
+      snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "no job owner specified");
+      unlock_queue(pque, __func__, log_buf, LOGLEVEL);
       job_purge(pj);
-      log_err(errno, __func__, "job owner not set");
-      req_reject(PBSE_IVALREQ, 0, preq, NULL, "no job owner specified");
-      return(NULL);
+      log_err(rc, __func__, log_buf);
+      req_reject(rc, 0, preq, NULL, log_buf);
+      return rc;
       }
 
     /* increment hop count */
 
     if (++pj->ji_wattr[JOB_ATR_hopcount].at_val.at_long > PBS_MAX_HOPCOUNT)
       {
-      unlock_queue(pque, "req_quejob", "max job hop", LOGLEVEL);
+      rc = PBSE_HOPCOUNT;
+      unlock_queue(pque, __func__, "max job hop", LOGLEVEL);
       job_purge(pj);
-      req_reject(PBSE_HOPCOUNT, 0, preq, NULL, "max job hop reached");
-      return(NULL);
+      req_reject(rc, 0, preq, NULL, "max job hop reached");
+      return rc;
       }
     }
 
@@ -1359,10 +1369,10 @@ void *req_quejob(
 
   if ((rc = svr_chkque(pj, pque, preq->rq_host, MOVE_TYPE_Move, EMsg)))
     {
-    unlock_queue(pque, "req_quejob", "can not move", LOGLEVEL);
+    unlock_queue(pque, __func__, "can not move", LOGLEVEL);
     job_purge(pj);
     req_reject(rc, 0, preq, NULL, EMsg);
-    return(NULL);
+    return rc;
     }
 
   /* FIXME: if EMsg[0] != '\0', send a warning email to the user */
@@ -1396,19 +1406,20 @@ void *req_quejob(
   if (reply_jobid(preq, pj->ji_qs.ji_jobid, BATCH_REPLY_CHOICE_Queue) != 0)
     {
     /* reply failed, purge the job and close the connection */
-    unlock_queue(pque, "req_quejob", "reply fail", LOGLEVEL);
+    rc = PBSE_SOCKET_WRITE; /* Re-write reply_jobid to return the error */
+    unlock_queue(pque, __func__, "reply fail", LOGLEVEL);
     close_conn(sock,FALSE);
     job_purge(pj);
-    return(NULL);
+    return rc;
     }
 
   /* link job into server's new jobs list request  */
   insert_job(&newjobs,pj);
 
-  unlock_queue(pque, "req_quejob", "success", LOGLEVEL);
+  unlock_queue(pque, __func__, "success", LOGLEVEL);
   pthread_mutex_unlock(pj->ji_mutex);
 
-  return(NULL);
+  return rc;
   }  /* END req_quejob() */
 
 
@@ -1422,37 +1433,32 @@ void *req_quejob(
  * It does nothing but acknowledge the request
  */
 
-void *req_jobcredential(
-
-  void *vp)  /* ptr to the decoded request   */
-
+int req_jobcredential(
+    struct batch_request *preq)
   {
+  int rc = PBSE_NONE;
   job *pj;
-  struct batch_request *preq = (struct batch_request *)vp;
 
   pj = locate_new_job(preq->rq_conn, NULL);
 
   if (pj == NULL)
     {
-    req_reject(PBSE_IVALREQ, 0, preq, NULL, NULL);
-
-    return(NULL);
+    rc = PBSE_IVALREQ;
+    req_reject(rc, 0, preq, NULL, NULL);
+    return rc;
     }
 
   if (svr_authorize_jobreq(preq, pj) == -1)
     {
-    req_reject(PBSE_PERM, 0, preq, NULL, "job request not authorized");
-
+    rc = PBSE_PERM;
+    req_reject(rc, 0, preq, NULL, "job request not authorized");
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return(NULL);
+    return rc;
     }
 
   reply_ack(preq);
-
   pthread_mutex_unlock(pj->ji_mutex);
-
-  return(NULL);
+  return rc;
   }  /* END req_jobcredential() */
 
 
@@ -1464,18 +1470,17 @@ void *req_jobcredential(
  * Each section is appended to the file
  */
 
-void req_jobscript(
+int req_jobscript(
 
   struct batch_request *preq) /* ptr to the decoded request*/
 
   {
-  char *id = "req_jobscript";
-
   int   fds;
   char  namebuf[MAXPATHLEN];
   job  *pj;
   int   filemode = 0600;
   char  log_buf[LOCAL_LOG_BUF_SIZE];
+  int   rc = PBSE_NONE;
 
   errno = 0;
 
@@ -1483,17 +1488,19 @@ void req_jobscript(
 
   if (pj == NULL)
     {
-    log_err(errno, id, "cannot locate new job");
-
-    req_reject(PBSE_IVALREQ, 0, preq, NULL, NULL);
-
-    return;
+    rc = PBSE_IVALREQ;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "can not locate new job %s (%d - %s)",
+        preq->rq_ind.rq_jobfile.rq_jobid, errno, strerror(errno));
+    log_err(rc, __func__, log_buf);
+    req_reject(rc, 0, preq, NULL, log_buf);
+    return rc;
     }
 
   /* what is the difference between JOB_SUBSTATE_TRANSIN and TRANSICM? */
 
   if (pj->ji_qs.ji_substate != JOB_SUBSTATE_TRANSIN)
     {
+    rc = PBSE_IVALREQ;
     if (errno == 0)
       {
       snprintf(log_buf, sizeof(log_buf),
@@ -1510,27 +1517,22 @@ void req_jobscript(
         errno,
         strerror(errno));
       }
-
-    log_err(errno, id, log_buf);
-
-    req_reject(PBSE_IVALREQ, 0, preq, NULL, log_buf);
-
+    log_err(rc, __func__, log_buf);
+    req_reject(rc, 0, preq, NULL, log_buf);
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return;
+    return rc;
     }
 
   if (svr_authorize_jobreq(preq, pj) == -1)
     {
-    /* FAILURE */
-
-    log_err(errno, id, "cannot authorize request");
-
-    req_reject(PBSE_PERM, 0, preq, NULL, "cannot receive job script");
-
+    rc = PBSE_PERM;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE,
+        "can not authorize request %s (%d-%s)",
+        preq->rq_ind.rq_jobfile.rq_jobid, errno, strerror(errno));
+    log_err(rc, __func__, log_buf);
+    req_reject(rc, 0, preq, NULL, log_buf);
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return;
+    return rc;
     }
 
   snprintf(namebuf, sizeof(namebuf), "%s%s%s", path_jobs, pj->ji_qs.ji_fileprefix, JOB_SCRIPT_SUFFIX);
@@ -1548,24 +1550,16 @@ void req_jobscript(
 
   if (fds < 0)
     {
-    char tmpLine[1024];
-
-    snprintf(tmpLine, sizeof(tmpLine), "cannot open '%s' errno=%d - %s",
+    rc = PBSE_CAN_NOT_OPEN_FILE;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "cannot open '%s' errno=%d - %s (%s)",
              namebuf,
              errno,
-             strerror(errno));
-
-    /* FAILURE */
-
-    /* NOTE: log_err may modify errno */
-
-    log_err(errno, id, msg_script_open);
-
-    req_reject(PBSE_INTERNAL, 0, preq, NULL, tmpLine);
-
+             strerror(errno),
+             msg_script_open);
+    log_err(rc, __func__, log_buf);
+    req_reject(rc, 0, preq, NULL, log_buf);
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return;
+    return rc;
     }
 
   if (write(
@@ -1573,17 +1567,17 @@ void req_jobscript(
         preq->rq_ind.rq_jobfile.rq_data,
         (unsigned)preq->rq_ind.rq_jobfile.rq_size) != preq->rq_ind.rq_jobfile.rq_size)
     {
-    /* FAILURE */
-
-    log_err(errno, id, msg_script_write);
-
-    req_reject(PBSE_INTERNAL, 0, preq, NULL, "cannot write job command file");
-
+    rc = PBSE_CAN_NOT_WRITE_FILE;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "can not write to file %s (%d-%s) %s",
+        namebuf,
+        errno,
+        strerror(errno),
+        msg_script_write);
+    log_err(rc, __func__, log_buf);
+    req_reject(PBSE_INTERNAL, 0, preq, NULL, log_buf);
     close(fds);
-
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return;
+    return rc;
     }
 
   close(fds);
@@ -1600,7 +1594,7 @@ void req_jobscript(
 
   reply_ack(preq);
 
-  return;
+  return rc;
   }  /* END req_jobscript() */
 
 
@@ -1616,16 +1610,16 @@ void req_jobscript(
  * within the spool directory.
  */
 
-void *req_mvjobfile(  /* NOTE:  routine for server only - mom code follows this routine */
-
-  void *vp) /* ptr to the decoded request   */
+    /* NOTE:  routine for server only - mom code follows this routine */
+int req_mvjobfile(
+  struct batch_request *preq) /* ptr to the decoded request   */
 
   {
-  struct batch_request *preq = (struct batch_request *)vp;
   int                   fds;
   char                  namebuf[MAXPATHLEN];
   job                  *pj;
   char                  log_buf[LOCAL_LOG_BUF_SIZE];
+  int   rc = PBSE_NONE;
 
   pj = locate_new_job(preq->rq_conn, NULL);
 
@@ -1634,17 +1628,14 @@ void *req_mvjobfile(  /* NOTE:  routine for server only - mom code follows this 
 
   if ((preq->rq_fromsvr == 0) || (pj == NULL))
     {
-    snprintf(log_buf, sizeof(log_buf), "cannot find job %s",
-             preq->rq_ind.rq_jobfile.rq_jobid);
-
-    log_err(errno, "req_mvjobfile", log_buf);
-
-    req_reject(PBSE_IVALREQ, 0, preq, NULL, NULL);
-
+    rc = PBSE_IVALREQ;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "cannot find job %s - (%d-%s)",
+             preq->rq_ind.rq_jobfile.rq_jobid, errno, strerror(errno));
+    log_err(rc, __func__, log_buf);
+    req_reject(rc, 0, preq, NULL, NULL);
     if (pj != NULL)
       pthread_mutex_unlock(pj->ji_mutex);
-
-    return(NULL);
+    return rc;
     }
 
   snprintf(namebuf, sizeof(namebuf), "%s%s", path_spool, pj->ji_qs.ji_fileprefix);
@@ -1672,16 +1663,13 @@ void *req_mvjobfile(  /* NOTE:  routine for server only - mom code follows this 
 
     default:
 
-      log_err(errno, "req_mvjobfile", "unexpected move type");
-
-      req_reject(PBSE_IVALREQ, 0, preq, NULL, NULL);
-
+      rc = PBSE_IVALREQ;
+      snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "unexpected move type %s - (%d-%s)",
+          pj->ji_qs.ji_jobid, errno, strerror(errno));
+      log_err(rc, __func__, log_buf);
+      req_reject(rc, 0, preq, NULL, log_buf);
       pthread_mutex_unlock(pj->ji_mutex);
-
-      return(NULL);
-
-      /*NOTREACHED*/
-
+      return rc;
       break;
     }
 
@@ -1695,13 +1683,14 @@ void *req_mvjobfile(  /* NOTE:  routine for server only - mom code follows this 
 
   if (fds < 0)
     {
-    log_err(errno, "req_mvjobfile", msg_script_open);
-
-    req_reject(PBSE_INTERNAL, 0, preq, NULL, NULL);
-
+    rc = PBSE_CAN_NOT_OPEN_FILE;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE,
+        "can not open file %s for %s - (%d-%s) - %s",
+        namebuf, pj->ji_qs.ji_jobid, errno, strerror(errno), msg_script_open);
+    log_err(errno, __func__, log_buf);
+    req_reject(rc, 0, preq, NULL, log_buf);
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return(NULL);
+    return rc;
     }
 
   if (write(
@@ -1709,15 +1698,15 @@ void *req_mvjobfile(  /* NOTE:  routine for server only - mom code follows this 
         preq->rq_ind.rq_jobfile.rq_data,
         (unsigned)preq->rq_ind.rq_jobfile.rq_size) != preq->rq_ind.rq_jobfile.rq_size)
     {
-    log_err(errno, "req_jobfile", msg_script_write);
-
-    req_reject(PBSE_SYSTEM, 0, preq, NULL, NULL);
-
+    rc = PBSE_CAN_NOT_WRITE_FILE;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE,
+        "can not write to file %s for %s - (%d-%s) - %s",
+        namebuf, pj->ji_qs.ji_jobid, errno, strerror(errno), msg_script_write);
+    log_err(rc, "req_jobfile", log_buf);
+    req_reject(PBSE_SYSTEM, 0, preq, NULL, log_buf);
     close(fds);
-
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return(NULL);
+    return rc;
     }
 
   close(fds);
@@ -1732,7 +1721,7 @@ void *req_mvjobfile(  /* NOTE:  routine for server only - mom code follows this 
     log_record(
       PBSEVENT_JOB,
       PBS_EVENTCLASS_JOB,
-      (pj != NULL) ? pj->ji_qs.ji_jobid : "NULL",
+      preq->rq_ind.rq_jobfile.rq_jobid,
       log_buf);
     }
 
@@ -1740,7 +1729,7 @@ void *req_mvjobfile(  /* NOTE:  routine for server only - mom code follows this 
 
   pthread_mutex_unlock(pj->ji_mutex);
 
-  return(NULL);
+  return rc;
   }  /* END req_mvjobfile() */
 
 
@@ -1754,7 +1743,7 @@ void *req_mvjobfile(  /* NOTE:  routine for server only - mom code follows this 
  *      (called by both pbs_server and pbs_mom)
  */
 
-void req_rdytocommit(
+int req_rdytocommit(
 
   struct batch_request *preq)  /* I */
 
@@ -1767,10 +1756,10 @@ void req_rdytocommit(
   char  OrigSChar;
   long  OrigFlags;
 
-  char *id = "req_rdytocommit";
   char  namebuf[MAXPATHLEN+1];
   char  jobid[PBS_MAXSVRJOBID + 1];
   char  log_buf[LOCAL_LOG_BUF_SIZE];
+  int   rc = PBSE_NONE;
 
   pj = locate_new_job(sock, preq->rq_ind.rq_rdytocommit);
 
@@ -1785,35 +1774,34 @@ void req_rdytocommit(
 
   if (pj == NULL)
     {
-    log_err(errno, id, "unknown job id");
-
-    req_reject(PBSE_UNKJOBID, 0, preq, NULL, NULL);
-
-    /* FAILURE */
-
-    return;
+    rc = PBSE_UNKJOBID;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "unknown job id %s (%d-%s)",
+        preq->rq_ind.rq_rdytocommit, errno, strerror(errno));
+    log_err(rc, __func__, log_buf);
+    req_reject(rc, 0, preq, NULL, log_buf);
+    return rc;
     }
 
   if (pj->ji_qs.ji_substate != JOB_SUBSTATE_TRANSIN)
     {
-    log_err(errno, id, "cannot commit job in unexpected state");
-
-    req_reject(PBSE_IVALREQ, 0, preq, NULL, NULL);
-
-    /* FAILURE */
+    rc = PBSE_IVALREQ;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE,
+        "can not commit job in unexpected state %s (%d-%s)",
+        preq->rq_ind.rq_rdytocommit, errno, strerror(errno));
+    log_err(rc, __func__, log_buf);
+    req_reject(rc, 0, preq, NULL, log_buf);
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return;
+    return rc;
     }
 
   if (svr_authorize_jobreq(preq, pj) == -1)
     {
-    req_reject(PBSE_PERM, 0, preq, NULL, "cannot authorize jobreq");
-
-    /* FAILURE */
+    rc = PBSE_PERM;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "can not authorize job req %s",
+        preq->rq_ind.rq_rdytocommit);
+    req_reject(rc, 0, preq, NULL, log_buf);
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return;
+    return rc;
     }
 
   OrigState  = pj->ji_qs.ji_state;
@@ -1843,14 +1831,14 @@ void req_rdytocommit(
 
   if (job_save(pj, SAVEJOB_NEW, 0) == -1)
     {
-    char tmpLine[1024];
-
-    snprintf(tmpLine, sizeof(tmpLine),
-      "cannot save job - errno=%d - %s",
+    rc = PBSE_CAN_NOT_WRITE_FILE;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE,
+      "cannot save job - %s - (%d - %s)",
+      pj->ji_qs.ji_jobid,
       errno,
       strerror(errno));
 
-    log_err(errno, id, tmpLine);
+    log_err(rc, __func__, log_buf);
 
     /* commit failed, backoff state changes */
 
@@ -1859,12 +1847,9 @@ void req_rdytocommit(
     pj->ji_wattr[JOB_ATR_state].at_val.at_char = OrigSChar;
     pj->ji_wattr[JOB_ATR_state].at_flags = OrigFlags;
 
-    req_reject(PBSE_SYSTEM, 0, preq, NULL, tmpLine);
-
-    /* FAILURE */
+    req_reject(rc, 0, preq, NULL, log_buf);
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return;
+    return rc;
     }
 
   /* acknowledge the request with the job id */
@@ -1875,24 +1860,19 @@ void req_rdytocommit(
 
   if (reply_jobid(preq, jobid, BATCH_REPLY_CHOICE_RdytoCom) != 0)
     {
+    rc = PBSE_SOCKET_WRITE; /* reply_jobid need to return an accurate code */
     /* reply failed, purge the job and close the connection */
 
     snprintf(log_buf, sizeof(log_buf),
-      "cannot report jobid - errno=%d - %s",
+      "cannot report jobid - %s - (%d - %s)",
+      jobid,
       errno,
       strerror(errno));
-
-    log_err(errno, id, log_buf);
-
+    log_err(rc, __func__, log_buf);
     close_conn(sock,FALSE);
-
     pj = find_job(jobid);
-
     job_purge(pj);
-
-    /* FAILURE */
-
-    return;
+    return rc;
     }
 
   if (LOGLEVEL >= 6)
@@ -1903,7 +1883,7 @@ void req_rdytocommit(
       (jobid != NULL) ? jobid : "NULL",
       "ready to commit job completed");
     }
-  return;
+  return rc;
   }  /* END req_rdytocommit() */
 
 
@@ -1916,17 +1896,17 @@ void req_rdytocommit(
  * enqueue the job into its destination queue.
  */
 
-void req_commit(
+int req_commit(
 
   struct batch_request *preq)  /* I */
 
   {
+  int rc = PBSE_NONE;
   job       *pj;
 
   int        newstate;
   int        newsub;
   pbs_queue *pque;
-  int        rc;
   char       log_buf[LOCAL_LOG_BUF_SIZE];
   time_t     time_now = time(NULL);
 
@@ -1962,22 +1942,22 @@ void req_commit(
 
   if (pj == NULL)
     {
-    req_reject(PBSE_UNKJOBID, 0, preq, NULL, NULL);
-
-    return;
+    rc = PBSE_UNKJOBID;
+    req_reject(rc, 0, preq, NULL, NULL);
+    return rc;
     }
 
 #ifdef QUICKCOMMIT
   if (pj->ji_qs.ji_substate != JOB_SUBSTATE_TRANSIN)
     {
-    log_err(errno, "req_commit", "cannot commit job in unexpected state");
-
-    req_reject(PBSE_IVALREQ, 0, preq, NULL, NULL);
-
-    /* FAILURE */
+    rc = PBSE_IVALREQ;
+    snprint(log_buf, LOCAL_LOG_BUF_SIZE,
+        "cannot commit job in unexpected state (%d - %s)",
+        errno, strerror(errno));
+    log_err(rc, __func__, log_buf);
+    req_reject(PBSE_IVALREQ, 0, preq, NULL, log_buf);
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return;
+    return rc;
     }
 
   OrigState  = pj->ji_qs.ji_state;
@@ -2003,31 +1983,26 @@ void req_commit(
 
   if (pj->ji_qs.ji_substate != JOB_SUBSTATE_TRANSICM)
     {
-    log_err(errno, "req_commit", "cannot commit job in unexpected state");
-
-    req_reject(PBSE_IVALREQ, 0, preq, NULL, NULL);
-
+    rc = PBSE_IVALREQ;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE,
+        "cannot commit job in unexpected state (%d-%s)",
+        errno, strerror(errno));
+    log_err(rc, __func__, "cannot commit job in unexpected state");
+    req_reject(rc, 0, preq, NULL, NULL);
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return;
+    return rc;
     }
 
   if (svr_authorize_jobreq(preq, pj) == -1)
     {
-    req_reject(PBSE_PERM, 0, preq, NULL, NULL);
-
+    rc = PBSE_PERM;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "no permission to start job %s",
+        pj->ji_qs.ji_jobid);
+    req_reject(rc, 0, preq, NULL, log_buf);
     if (LOGLEVEL >= 6)
-      {
-      log_record(
-        PBSEVENT_JOB,
-        PBS_EVENTCLASS_JOB,
-        (pj != NULL) ? pj->ji_qs.ji_jobid : "NULL",
-        "no permission to start job");
-      }
-
+      log_record(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pj->ji_qs.ji_jobid, log_buf);
     pthread_mutex_unlock(pj->ji_mutex);
-
-    return;
+    return rc;
     }
 
   /* remove job from the server new job list, set state, and enqueue it */
@@ -2042,6 +2017,7 @@ void req_commit(
 
     if ((rc = setup_array_struct(pj)))
       {
+      rc = PBSE_BAD_ARRAY_REQ;
       if (rc == ARRAY_TOO_LARGE)
         {
         get_svr_attr_l(SRV_ATR_MaxArraySize, &max_size);
@@ -2049,25 +2025,24 @@ void req_commit(
           "Requested array size too large, limit is %ld",
            max_size);
 
-        req_reject(PBSE_BAD_ARRAY_REQ, 0, preq, NULL, log_buf);
+        req_reject(rc, 0, preq, NULL, log_buf);
         }
       else if (rc == INVALID_SLOT_LIMIT)
         {
         get_svr_attr_l(SRV_ATR_MaxSlotLimit, &max_slot);
         snprintf(log_buf,sizeof(log_buf),
-          "Requested slot limit too large, limit is %ld",
+          "Requested slot limit invalid, limit is %ld",
           max_slot);
 
-        req_reject(PBSE_BAD_ARRAY_REQ, 0, preq, NULL, log_buf);
+        req_reject(rc, 0, preq, NULL, log_buf);
         }
       else
         {
-        req_reject(PBSE_BAD_ARRAY_REQ, 0, preq, NULL, NULL);
+        req_reject(rc, 0, preq, NULL, NULL);
         }
 
       pthread_mutex_unlock(pj->ji_mutex);
-      
-      return;
+      return rc;
       }
     }  /* end if (pj->ji_wattr[JOB_ATR_job_array_request].at_flags & ATR_VFLAG_SET) */
 
@@ -2083,38 +2058,25 @@ void req_commit(
 
   if ((rc = svr_enquejob(pj, FALSE, -1)))
     {
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "can not queue job %s",
+        pj->ji_qs.ji_jobid);
     if (LOGLEVEL >= 6)
-      {
-      log_record(
-        PBSEVENT_JOB,
-        PBS_EVENTCLASS_JOB,
-        (pj != NULL) ? pj->ji_qs.ji_jobid : "NULL",
-        "cannot queue job");
-      }
-
+      log_record(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pj->ji_qs.ji_jobid, log_buf);
     job_purge(pj);
-
-    req_reject(rc, 0, preq, NULL, NULL);
-
-    return;
+    req_reject(rc, 0, preq, NULL, log_buf);
+    return rc;
     }
 
   if (job_save(pj, SAVEJOB_FULL, 0) != 0)
     {
+    rc = PBSE_CAN_NOT_SAVE_FILE;
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "can not save job %s",
+        pj->ji_qs.ji_jobid);
     if (LOGLEVEL >= 6)
-      {
-      log_record(
-        PBSEVENT_JOB,
-        PBS_EVENTCLASS_JOB,
-        (pj != NULL) ? pj->ji_qs.ji_jobid : "NULL",
-        "cannot save job");
-      }
-
+      log_record(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pj->ji_qs.ji_jobid, log_buf);
     job_purge(pj);
-
-    req_reject(PBSE_SYSTEM, 0, preq, NULL, NULL);
-
-    return;
+    req_reject(rc, 0, preq, NULL, log_buf);
+    return rc;
     }
 
   /*
@@ -2131,24 +2093,18 @@ void req_commit(
       {
       if ((rc = job_route(pj)))
         {
-        unlock_queue(pque, "req_commit", "can't route job", LOGLEVEL);
+        snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "can not route job %s",
+            pj->ji_qs.ji_jobid);
+        unlock_queue(pque, __func__, log_buf, LOGLEVEL);
 
         if (LOGLEVEL >= 6)
           {
-          log_record(
-            PBSEVENT_JOB,
-            PBS_EVENTCLASS_JOB,
-            (pj != NULL) ? pj->ji_qs.ji_jobid : "NULL",
-            "job route job");
+          log_record(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pj->ji_qs.ji_jobid,
+            log_buf);
           }
-
         job_purge(pj);
-
-        req_reject(rc, 0, preq, NULL, NULL);
-
-        /* FAILURE */
-
-        return;
+        req_reject(rc, 0, preq, NULL, log_buf);
+        return rc;
         }
       }
 
@@ -2160,7 +2116,7 @@ void req_commit(
       pj->ji_wattr[JOB_ATR_jobname].at_val.at_str,
       pque->qu_qs.qu_name);
 
-    unlock_queue(pque, "req_commit", "route success", LOGLEVEL);
+    unlock_queue(pque, __func__, "route success", LOGLEVEL);
     }
 
 #ifdef AUTORUN_JOBS
@@ -2238,7 +2194,7 @@ void req_commit(
 
 #endif /* AUTORUN_JOBS */
 
-  return;
+  return rc;
   }  /* END req_commit() */
 
 
