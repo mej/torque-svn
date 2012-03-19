@@ -123,7 +123,9 @@ extern unsigned int  pbs_mom_port;
  */
 
 int req_gpuctrl_svr(
-    struct batch_request *preq)
+    
+  struct batch_request *preq)
+
   {
   int rc = PBSE_NONE;
   char  *nodename = NULL;
@@ -278,7 +280,6 @@ int req_gpuctrl_svr(
     }
 
   req_reject(PBSE_NOSUP, 0, preq, NULL, NULL);
-  svr_disconnect(conn);
 
 #endif  /* NVIDIA_GPUS */
 

@@ -980,7 +980,7 @@ job *job_clone(
 
 void job_clone_wt(
 
-  struct work_task *ptask)
+  void *cloned_id)
 
   {
   char                log_buf[LOCAL_LOG_BUF_SIZE];
@@ -1002,9 +1002,7 @@ void job_clone_wt(
   int                 start;
   int                 end;
 
-  jobid = (char *)(ptask->wt_parm1);
-  free(ptask->wt_mutex);
-  free(ptask);
+  jobid = (char *)cloned_id;
 
   if (jobid == NULL)
     {

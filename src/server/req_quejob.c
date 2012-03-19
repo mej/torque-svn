@@ -121,6 +121,7 @@
 #include "array.h"
 #include "queue_func.h" /* get_dfltque, find_queuebyname */
 #include "svr_func.h" /* get_svr_attr_* */
+#include "threadpool.h"
 
 
 #include "work_task.h"
@@ -135,7 +136,7 @@ extern int   job_route(job *);
 extern int   node_avail_complex(char *, int *, int *, int *, int*);
 extern void  set_chkpt_deflt(job *, pbs_queue *);
 int          setup_array_struct(job *pjob);
-void         job_clone_wt(struct work_task *);
+void        *job_clone_wt(void *);
 
 /* Global Data Items: */
 
@@ -197,12 +198,15 @@ static char *pbs_o_que = "PBS_O_QUEUE=";
  *          Non-Zero on failure 
  *****************************************************************/
 
-int set_nodes_attr(job *pjob)
+int set_nodes_attr(
+    
+  job *pjob)
+
   {
   resource *pres;
-	int  nodect_set = 0;
-  int  rc = 0;
-  char *pname;
+	int       nodect_set = 0;
+  int       rc = 0;
+  char     *pname;
 
   if (pjob->ji_wattr[JOB_ATR_resource].at_flags & ATR_VFLAG_SET)
     {
@@ -252,7 +256,6 @@ void sum_select_mem_request(
   job * pj)
 
   {
-  char  id[] = "sum_select_mem_request";
   char  select[] = "select";
   char  mem_str[] = "mem=";
   char  memval_str[MAXPATHLEN];
@@ -362,7 +365,7 @@ void sum_select_mem_request(
           snprintf(log_buf,sizeof(log_buf),
             "WARNING:   Unknown unit %cb used in memory request\n",
             *current);
-          log_err(-1,id,log_buf);
+          log_err(-1, __func__, log_buf);
           
           break;
         }
@@ -467,7 +470,9 @@ int set_node_attr(
  */
 
 int req_quejob(
-    struct batch_request *preq)
+
+  struct batch_request *preq)
+
   {
   int                   created_here = 0;
   int                   attr_index;
@@ -1434,7 +1439,9 @@ int req_quejob(
  */
 
 int req_jobcredential(
-    struct batch_request *preq)
+
+  struct batch_request *preq)
+
   {
   int rc = PBSE_NONE;
   job *pj;
@@ -1612,6 +1619,7 @@ int req_jobscript(
 
     /* NOTE:  routine for server only - mom code follows this routine */
 int req_mvjobfile(
+
   struct batch_request *preq) /* ptr to the decoded request   */
 
   {
@@ -1908,7 +1916,6 @@ int req_commit(
   int        newsub;
   pbs_queue *pque;
   char       log_buf[LOCAL_LOG_BUF_SIZE];
-  time_t     time_now = time(NULL);
 
 #ifdef AUTORUN_JOBS
 
@@ -2154,7 +2161,7 @@ int req_commit(
   /* if job array, setup the cloning work task */
   if (pj->ji_is_array_template)
     {
-    set_task(WORK_Timed, time_now + 1, job_clone_wt, strdup(pj->ji_qs.ji_jobid), FALSE);
+    enqueue_threadpool_request(job_clone_wt, strdup(pj->ji_qs.ji_jobid));
     }
     
   log_event(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,pj->ji_qs.ji_jobid,log_buf);
