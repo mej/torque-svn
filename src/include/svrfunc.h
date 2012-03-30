@@ -90,9 +90,6 @@ struct stat_cntl    /* used in req_stat_job */
   char        sc_jobid[PBS_MAXSVRJOBID+1];
   };
 
-extern int stat_to_mom(job *, struct stat_cntl *);
-
-
 /*
  * the following defines are due to the fact that O_SYNC was not
  * POSIX standard (TDISABLEFILESYNC managed w/configure --enable-filesync)

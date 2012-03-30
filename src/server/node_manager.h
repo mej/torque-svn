@@ -7,7 +7,7 @@
 #include "pbs_ifl.h" /* resource_t */
 #include "pbs_nodes.h" /* howl, gpusubn */
 
-struct pbsnode *tfind_addr(const u_long key, uint16_t port, job *pjob);
+struct pbsnode *tfind_addr(const u_long key, uint16_t port, char *job_momname);
 
 void update_node_state(struct pbsnode *np, int newstate);
 

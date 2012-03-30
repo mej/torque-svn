@@ -123,6 +123,7 @@
 #include "../lib/Libutils/u_lock_ctl.h" /* lock_node, unlock_node */
 #include "../lib/Libnet/lib_net.h" /* socket_read_flush */
 #include "svr_func.h" /* get_svr_attr_* */
+#include "svr_connect.h" /* svr_disconnect_sock */
 
 #define IS_VALID_STR(STR)  (((STR) != NULL) && ((STR)[0] != '\0'))
 #define SEND_HELLO 11
@@ -227,7 +228,7 @@ struct pbsnode *tfind_addr(
 
   const u_long  key,
   uint16_t      port,
-  job          *pjob)
+  char         *job_momname)
 
   {
   struct pbsnode *pn = AVL_find(key,port,ipaddrs);
@@ -243,7 +244,7 @@ struct pbsnode *tfind_addr(
     {
     char *dash = NULL;
     char *plus = NULL;
-    char *tmp = pjob->ji_wattr[JOB_ATR_exec_host].at_val.at_str;
+    char *tmp = job_momname;
 
     struct pbsnode *numa = NULL;
 
@@ -780,22 +781,15 @@ void *sync_node_jobs(
               {
               if ((preq = alloc_br(PBS_BATCH_DeleteJob)) == NULL)
                 {
-                log_err(-1, __func__, "unable to allocate DeleteJob request-trouble!");
-                
+                log_err(-1, __func__,
+                    "unable to allocate DeleteJob request-trouble!");
                 svr_disconnect(conn);
                 }
               else
                 {
                 strcpy(preq->rq_ind.rq_delete.rq_objname, jobidstr);
                 if (issue_Drequest(conn, preq, release_req, 0) != 0)
-                  {
-                  /* release_req will free preq and close connection if successful */
                   free_br(preq);
-                  
-                  /* NOTE: only disconnect if we're unsuccesful - the mom has to reply on 
-                   * this connection (see above comment for close connection */
-                  svr_disconnect(conn);
-                  }
                 }
               }
             }

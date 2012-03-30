@@ -124,6 +124,7 @@
 #include "utils.h"
 #include "../lib/Libnet/lib_net.h" /* get_hostaddr_hostent_af */
 #include "mom_server.h"
+#include "mom_job_func.h" /* job_purge */
 #ifdef PENABLE_LINUX26_CPUSETS
 #include "pbs_cpuset.h"
 #endif

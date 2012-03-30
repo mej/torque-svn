@@ -140,6 +140,7 @@
 #include "req_rerun.h" /* req_rerunjob */
 #include "req_select.h" /* req_selectjobs */
 #include "req_register.h" /* req_register, req_registerarray */
+#include "job_func.h" /* job_purge */
 
 
 /*

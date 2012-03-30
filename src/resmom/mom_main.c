@@ -78,6 +78,7 @@
 #include "mom_hierarchy.h"
 #include "../lib/Libutils/u_lock_ctl.h" /* lock_init */
 #include "mom_server.h"
+#include "mom_job_func.h" /* job_purge */
 
 #include "mcom.h"
 

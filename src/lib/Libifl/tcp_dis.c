@@ -401,8 +401,9 @@ int DIS_tcp_wflush(
 
       if (pbs_debug != NULL)
         {
-        fprintf(stderr, "TCP write of %d bytes (%.32s) failed, errno=%d (%s)\n",
-          (int)ct, temp_pb, errno, strerror(errno));
+        fprintf(stderr,
+            "TCP write of %d bytes (%.32s) [sock=%d] failed, errno=%d (%s)\n",
+          (int)ct, temp_pb, fd, errno, strerror(errno));
         }
       free(orig_temp_pb);
       return(-1);

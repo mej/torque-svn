@@ -110,6 +110,7 @@ int parse_response_svr(
    */
   int rc = PBSE_NONE;
   struct batch_reply *reply = NULL;
+  char *tmp_val = NULL;
   DIS_tcp_setup(sock);
   if ((reply = (struct batch_reply *)calloc(1, sizeof(struct batch_reply))) == NULL)
     {
@@ -125,7 +126,14 @@ int parse_response_svr(
       {
       rc = PBSE_PROTOCOL;
       }
-    *err_msg = strdup(pbs_strerror(rc));
+    if ((tmp_val = pbs_strerror(rc)) == NULL)
+      {
+      char err_buf[80];
+      snprintf(err_buf, 79, "Error creating error message for code %d", rc);
+      *err_msg = strdup(err_buf);
+      }
+    else
+      *err_msg = strdup(tmp_val);
     }
   else
     {

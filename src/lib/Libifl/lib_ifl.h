@@ -20,9 +20,6 @@ void *process_svr_conn(void *sock);
 /* PBSD_gpuctrl2.c */
 int PBSD_gpu_put(int c, char *node, char *gpuid, int gpumode, int reset_perm, int reset_vol, char *extend);
 
-/* PBSD_gpuctrl2.c */
-int PBSD_gpu_put(int c, char *node, char *gpuid, int gpumode, int reset_perm, int reset_vol, char *extend);
-
 /* PBSD_manage2.c */
 int PBSD_mgr_put(int c, int function, int command, int objtype, char *objname, struct attropl *aoplp, char *extend); 
 

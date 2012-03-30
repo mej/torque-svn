@@ -34,6 +34,8 @@
 #include "pbs_error.h"
 #include "pbs_proto.h"
 #include "../lib/Libifl/lib_ifl.h" /* pbs_disconnect_socket */
+#include "../server/svr_connect.h" /* svr_disconnect_sock */
+#include "mom_job_func.h" /* job_purge */
 #ifdef ENABLE_CPA
 #include "pbs_cpa.h"
 #endif
@@ -735,8 +737,9 @@ void scan_for_exiting(void)
         "calling mom_open_socket_to_jobs_server");
       }
 
-    post_epilogue(pjob, pjob->ji_qs.ji_un.ji_momt.ji_exitstat = 0);
+    run_epilogues(pjob);
     pjob->ji_qs.ji_substate = JOB_SUBSTATE_PREOBIT;
+    send_job_status(pjob);
 
     if (found_one++ >= ObitsAllowed)
       {
@@ -836,6 +839,44 @@ int run_epilogues(job *pjob)
   }
 
 
+
+int send_job_status(
+    job *pjob)
+  {
+  int rc = PBSE_NONE;
+  int sock = -1;
+
+  if ((sock = mom_open_socket_to_jobs_server(pjob, __func__, preobit_reply)) >= 0)
+    {
+    DIS_tcp_setup(sock);
+    if ((rc = encode_DIS_ReqHdr(sock, PBS_BATCH_StatusJob, pbs_current_user)) != PBSE_NONE)
+      {
+      }
+    else if ((rc = encode_DIS_Status(sock, pjob->ji_qs.ji_jobid, NULL)) != PBSE_NONE)
+      {
+      }
+    else if ((rc = encode_DIS_ReqExtend(sock, NULL)) != PBSE_NONE)
+      {
+      }
+    else if ((rc = DIS_tcp_wflush(sock)) != PBSE_NONE)
+      {
+      }
+    else
+      {
+      }
+    }
+  else
+    {
+    if ((errno == EINPROGRESS) || (errno == ETIMEDOUT) || (errno == EINTR))
+      sprintf(log_buffer, "connect to server unsuccessful after 5 seconds - will retry");
+    set_mom_server_down(pjob->ji_qs.ji_un.ji_momt.ji_svraddr);
+    rc = PBSE_CONNECT;
+    }
+  return rc;
+  }
+
+
+
 /**
  * Send obit to server.
  *
@@ -861,8 +902,6 @@ int post_epilogue(
     sprintf(log_buffer, "preparing obit message for job %s", pjob->ji_qs.ji_jobid);
     log_event(PBSEVENT_DEBUG, PBS_EVENTCLASS_REQUEST, __func__, log_buffer);
     }
-
-  run_epilogues(pjob);
 
   /* open new connection - register obit_reply as handler */
   sock = mom_open_socket_to_jobs_server(pjob, __func__, obit_reply);
@@ -1003,7 +1042,6 @@ void *preobit_reply(
 
   struct brp_status    *pstatus;
   svrattrl             *sattrl;
-  int                   runepilogue = 0;
   int                   deletejob = 0;
   int                   jobiscorrupt = 0;
 
@@ -1022,7 +1060,6 @@ void *preobit_reply(
   while ((irtn = DIS_reply_read(sock, &preq->rq_reply)) &&
          (errno == EINTR));
 
-  pbs_disconnect_socket(sock);
   close_conn(sock, FALSE);
 
   if (irtn != 0)
@@ -1152,24 +1189,11 @@ void *preobit_reply(
 
             deletejob = 1;
             }
-          else
-            {
-            /* job was run locally */
-
-            runepilogue = 1;
-            }
-
           break;
           }
 
         sattrl = (svrattrl *)GET_NEXT(sattrl->al_link);
         }  /* END while (sattrl != NULL) */
-
-      if (jobiscorrupt == 1)
-        {
-        /* runepilogue = 1; */
-        }
-
       break;
 
     case - 1:
@@ -1210,21 +1234,6 @@ void *preobit_reply(
       }
 
     mom_deljob(pjob);
-
-    return NULL;
-    }
-
-  if (!runepilogue)
-    {
-    log_record(
-      PBSEVENT_ERROR,
-      PBS_EVENTCLASS_JOB,
-      pjob->ji_qs.ji_jobid,
-      log_buffer);
-
-    pjob->ji_qs.ji_substate = JOB_SUBSTATE_EXITING;
-    pjob->ji_momhandle = -1;
-    exiting_tasks = 1;  /* job exit will be picked up again */
 
     return NULL;
     }
@@ -1572,7 +1581,6 @@ void *obit_reply(
           log_event(PBSEVENT_ERROR, PBS_EVENTCLASS_JOB, pjob->ji_qs.ji_jobid, tmp_line);
           pjob->ji_qs.ji_substate = JOB_SUBSTATE_EXITED;
           }
-        break;
         /* Commenting for now. The mom's are way to chatty right now */
 /*        else
           {

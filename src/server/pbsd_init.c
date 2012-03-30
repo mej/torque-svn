@@ -123,6 +123,7 @@
 #include "queue_recycler.h" /* queue_recycler */
 #include "svr_task.h" /* initialize_task_recycler */
 #include "svr_func.h" /* get_svr_attr_* */
+#include "job_func.h" /* job_purge */
 
 /*#ifndef SIGKILL*/
 /* there is some weird stuff in gcc include files signal.h & sys/params.h */
@@ -227,7 +228,6 @@ extern void   acct_close(void);
 
 extern struct work_task *apply_job_delete_nanny(struct job *, int);
 extern int     net_move(job *, struct batch_request *);
-void         *job_clone_wt(void *vp);
 void          on_job_exit(struct work_task *);
 
 /* Private functions in this file */

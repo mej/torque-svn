@@ -115,6 +115,7 @@
 #include "node_func.h" /* find_nodebyname */
 #include "../lib/Libutils/u_lock_ctl.h" /* unlock_node */
 #include "svr_func.h" /* get_svr_attr_* */
+#include "req_stat.h" /* stat_mom_job */
 
 
 #ifdef HAVE_NETINET_IN_H
@@ -129,7 +130,6 @@ extern void  set_resc_assigned(job *, enum batch_op);
 extern struct batch_request *cpy_stage(struct batch_request *, job *, enum job_atr, int);
 void                         stream_eof(int, u_long, uint16_t, int);
 extern int                   job_set_wait(attribute *, void *, int);
-extern void                  stat_mom_job(job *);
 
 extern int LOGLEVEL;
 
@@ -1123,7 +1123,7 @@ static int svr_strtjob2(
 
 void finish_sendmom(
 
-  job                  *pjob,
+  char                  *job_id,
   struct batch_request *preq,
   long                  start_time,
   char                 *node_name,
@@ -1134,12 +1134,19 @@ void finish_sendmom(
   pbs_net_t  addr;
   int        newstate;
   int        newsub;
-  char       log_buf[LOCAL_LOG_BUF_SIZE];
+  char       log_buf[LOCAL_LOG_BUF_SIZE+1];
   time_t     time_now = time(NULL);
+  job *pjob;
+
+  if ((pjob = find_job(job_id)) == NULL)
+    {
+    req_reject(PBSE_JOBNOTFOUND, 0, preq, node_name, log_buf);
+    return;
+    }
 
   if (LOGLEVEL >= 6)
     {
-    log_record(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,pjob->ji_qs.ji_jobid,"entering post_sendmom");
+    log_record(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,job_id,"entering post_sendmom");
     }
 
   if (LOGLEVEL >= 1)
@@ -1150,7 +1157,7 @@ void finish_sendmom(
       (node_name != NULL) ? node_name : "???",
       status);
 
-    log_event(PBSEVENT_SYSTEM,PBS_EVENTCLASS_JOB,pjob->ji_qs.ji_jobid,log_buf);
+    log_event(PBSEVENT_SYSTEM,PBS_EVENTCLASS_JOB,job_id,log_buf);
     }
 
   switch (status)
@@ -1188,7 +1195,7 @@ void finish_sendmom(
         depend_on_exec(pjob);
 
       /* set up the poll task */
-      set_task(WORK_Timed, time_now + JobStatRate, poll_job_task, strdup(pjob->ji_qs.ji_jobid), FALSE);
+      set_task(WORK_Timed, time_now + JobStatRate, poll_job_task, strdup(job_id), FALSE);
 
       break;
 
@@ -1201,7 +1208,7 @@ void finish_sendmom(
       /* send failed, requeue the job */
       log_event(PBSEVENT_JOB,
         PBS_EVENTCLASS_JOB,
-        pjob->ji_qs.ji_jobid,
+        job_id,
         "unable to run job, MOM rejected/timeout");
 
       free_nodes(pjob);
@@ -1242,7 +1249,7 @@ void finish_sendmom(
       /* send failed, requeue the job */
       sprintf(log_buf, "unable to run job, MOM rejected/rc=%d", status);
       
-      log_event(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,pjob->ji_qs.ji_jobid,log_buf);
+      log_event(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,job_id,log_buf);
       
       free_nodes(pjob);
       
@@ -1279,7 +1286,9 @@ void finish_sendmom(
           pjob->ji_momstat = 0;
           
           /* update mom-based job status */
-          stat_mom_job(pjob);
+          pthread_mutex_unlock(pjob->ji_mutex);
+          stat_mom_job(job_id);
+          pjob = find_job(job_id);
           }
         else
           {
@@ -1298,6 +1307,7 @@ void finish_sendmom(
       break;
       }
     }  /* END switch (status) */
+  pthread_mutex_unlock(pjob->ji_mutex);
 
   } /* END finish_sendmom() */
 

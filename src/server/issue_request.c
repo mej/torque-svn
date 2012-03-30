@@ -111,6 +111,8 @@
 #include <stdint.h>
 #include "../lib/Libutils/u_lock_ctl.h" /* lock_node, unlock_node */
 #include "process_request.h" /* dispatch_request */
+#include "svr_connect.h" /* svr_disconnect_sock */
+#include "node_manager.h" /* tfind_addr */
 
 
 /* Global Data Items: */
@@ -128,7 +130,6 @@ extern unsigned int pbs_mom_port;
 extern unsigned int pbs_server_port_dis;
 
 extern struct  connection svr_conn[];
-extern struct pbsnode *tfind_addr(const u_long, uint16_t,job *); 
 
 extern int       LOGLEVEL;
 
@@ -153,13 +154,14 @@ int relay_to_mom(
   void                  (*func)(struct work_task *))
 
   {
-  int             conn; /* a client style connection handle */
+  int             handle; /* a client style connection handle */
   int             rc;
   int             local_errno = 0;
   pbs_net_t       addr;
   unsigned short  port;
   job            *pjob = *pjob_ptr;
   char            jobid[PBS_MAXSVRJOBID + 1];
+  char *job_momname = NULL;
 
   struct pbsnode *node;
   char            log_buf[LOCAL_LOG_BUF_SIZE];
@@ -167,12 +169,17 @@ int relay_to_mom(
   /* if MOM is down don't try to connect */
   addr = pjob->ji_qs.ji_un.ji_exect.ji_momaddr;
   port = pjob->ji_qs.ji_un.ji_exect.ji_momport;
+  job_momname = strdup(pjob->ji_wattr[JOB_ATR_exec_host].at_val.at_str);
+  if (job_momname == NULL)
+    return PBSE_MEM_MALLOC;
 
-  if ((node = tfind_addr(addr, port, pjob)) == NULL)
+  if ((node = tfind_addr(addr, port, job_momname)) == NULL)
     {
+    free(job_momname);
     free_br(request);
     return(PBSE_NORELYMOM);
     }
+  free(job_momname);
 
   if ((node != NULL) &&
       (node->nd_state & INUSE_DOWN))
@@ -192,17 +199,17 @@ int relay_to_mom(
     free(tmp);
     }
 
-  conn = svr_connect(
+  unlock_node(node, __func__, "after svr_connect", LOGLEVEL);
+  handle = svr_connect(
            pjob->ji_qs.ji_un.ji_exect.ji_momaddr,
            pjob->ji_qs.ji_un.ji_exect.ji_momport,
            &local_errno,
-           node,
+           NULL,
            NULL,
            ToServerDIS);
     
-  unlock_node(node, __func__, "after svr_connect", LOGLEVEL);
 
-  if (conn < 0)
+  if (handle < 0)
     {
     log_event(PBSEVENT_ERROR,PBS_EVENTCLASS_REQUEST,"",msg_norelytomom);
 
@@ -215,7 +222,7 @@ int relay_to_mom(
 
   request->rq_orgconn = request->rq_conn; /* save client socket */
 
-  rc = issue_Drequest(conn, request, func, NULL);
+  rc = issue_Drequest(handle, request, func, NULL);
 
   *pjob_ptr = find_job(jobid);
 
@@ -417,7 +424,8 @@ int issue_Drequest(
   struct work_task *ptask;
 
   struct svrattrl  *psvratl;
-  int               rc;
+  int               rc = PBSE_NONE;
+  int               tmp_rc = PBSE_NONE;
   int               sock = 0;
   enum work_type    wt;
   char             *id = "issue_Drequest";
@@ -711,12 +719,12 @@ int issue_Drequest(
 
       break;
     }  /* END switch (request->rq_type) */
-  if ((rc = DIS_reply_read(sock, &request->rq_reply)) != 0)
+  if ((tmp_rc = DIS_reply_read(sock, &request->rq_reply)) != 0)
     {
-    close_conn(sock, FALSE);
-    request->rq_reply.brp_code = rc;
+    request->rq_reply.brp_code = tmp_rc;
     request->rq_reply.brp_choice = BATCH_REPLY_CHOICE_NULL;
     }
+  close_conn(sock, FALSE);
   if (func != NULL)
     dispatch_task(ptask);
   return(rc);

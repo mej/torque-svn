@@ -26,7 +26,7 @@ char *msg_manager = "%s at request of %s@%s";
 
 
 
-void finish_sendmom(job *pjob, struct batch_request *preq, long start_time, char *node_name, int status)
+void finish_sendmom(char *job_id, struct batch_request *preq, long start_time, char *node_name, int status)
   {
   fprintf(stderr, "The call to finish_sendmom to be mocked!!\n");
   exit(1);
@@ -62,7 +62,7 @@ int job_save(job *pjob, int updatetype, int mom_port)
   exit(1);
   }
 
-void job_purge(job *pjob)
+int job_purge(job *pjob)
   {
   fprintf(stderr, "The call to job_purge to be mocked!!\n");
   exit(1);

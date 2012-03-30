@@ -113,6 +113,7 @@
 #include "threadpool.h"
 #include "../lib/Libutils/u_lock_ctl.h" /* unlock_node */
 #include "queue_func.h" /* find_queuebyname */
+#include "req_runjob.h" /* finish_sendmom */
 
 
 #if __STDC__ != 1
@@ -126,11 +127,10 @@
 
 /* External functions called */
 
-extern void stat_mom_job(job *);
 extern void remove_stagein(job **);
 extern void remove_checkpoint(job **);
 extern int  job_route(job *);
-void finish_sendmom(job *, struct batch_request *, long, char *, int, int);
+extern int job_purge(job *);
 int PBSD_commit_get_sid(int ,long *,char *);
 int get_job_file_path(job *,enum job_file, char *, int);
 
@@ -532,7 +532,7 @@ void finish_moving_processing(
 
 void finish_move_process(
 
-  char                 *jobid,
+  char                 *job_id,
   struct batch_request *preq,
   long                  time,
   char                 *node_name,
@@ -544,13 +544,13 @@ void finish_move_process(
   char  log_buf[LOCAL_LOG_BUF_SIZE];
   /* NOTE: do not unlock job's mutex because functions up 
    * the stack expect it to be locked */
-  job  *pjob = find_job(jobid);
+  job  *pjob = find_job(job_id);
 
   if (pjob == NULL)
     {
     /* somehow the job has been deleted mid-runjob */
     snprintf(log_buf, sizeof(log_buf),
-      "Job %s was deleted while servicing move request", jobid);
+      "Job %s was deleted while servicing move request", job_id);
 
     if (preq != NULL)
       {
@@ -577,8 +577,9 @@ void finish_move_process(
         break;
         
       case MOVE_TYPE_Exec:
-        
-        finish_sendmom(pjob, preq, time, node_name, status, mom_err);
+        pthread_mutex_unlock(pjob->ji_mutex);
+        finish_sendmom(job_id, preq, time, node_name, status, mom_err);
+        find_job(job_id); /* Make sure the job is locked on return */
         
         break;
       } /* END switch (type) */
@@ -771,7 +772,7 @@ int send_job_work(
         {
         svr_disconnect(con);
 
-        close(sock);
+        close_conn(sock, FALSE);
         }
 
       /* check my_err from previous attempt */
@@ -976,7 +977,7 @@ int send_job_work(
 
     svr_disconnect(con);
 
-    close(sock);
+    close_conn(sock, FALSE);
 
     /* SUCCESS */
     rc = PBSE_NONE;  /* Equivalent value to LOCUTION_SUCCESS */
@@ -987,7 +988,7 @@ int send_job_work(
     {
     svr_disconnect(con);
 
-    close(sock);
+    close_conn(sock, FALSE);
     }
 
   if (Timeout == TRUE)

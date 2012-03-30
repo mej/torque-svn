@@ -40,6 +40,7 @@
 #include "threadpool.h"
 #include "dis.h"
 #include "mom_requests.h"
+#include "mom_job_func.h" /* job_purge */
 
 /*
  * mom_process_request - this function gets, checks, and invokes the proper

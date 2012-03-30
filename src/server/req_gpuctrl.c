@@ -101,6 +101,7 @@
 #include "pbs_nodes.h"
 #include "../lib/Libutils/u_lock_ctl.h" /* unlock_node */
 #include "issue_request.h" /* issue_Drequest */
+#include "svr_connect.h" /* svr_connect, svr_disconnect_sock */
 
 /* External Functions */
 
@@ -240,15 +241,15 @@ int req_gpuctrl_svr(
 
   preq->rq_orgconn = preq->rq_conn;  /* restore client socket */
 
+  unlock_node(pnode, "req_gpuctrl", NULL, LOGLEVEL);
   conn = svr_connect(
            pnode->nd_addrs[0],
            pbs_mom_port,
            &local_errno,
-           pnode,
+           NULL,
            NULL,
            ToServerDIS);
     
-  unlock_node(pnode, "req_gpuctrl", NULL, LOGLEVEL);
 
   if (conn >= 0)
     {
@@ -256,12 +257,10 @@ int req_gpuctrl_svr(
       {
       req_reject(rc, 0, preq, NULL, NULL);
       }
-    svr_disconnect(conn);
     }
   else
     {
     req_reject(PBSE_UNKREQ, 0, preq, NULL, "Failed to get connection to mom");
-    svr_disconnect(conn);
     }
 
 #else

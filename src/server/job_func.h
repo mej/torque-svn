@@ -21,7 +21,7 @@ void job_free(job *pj);
 
 job *job_clone(job *template_job, job_array *pa, int taskid);
 
-void job_clone_wt(void *vp);
+void *job_clone_wt(void *vp);
 
 /* static void job_init_wattr(job *pj); */
 
@@ -33,7 +33,7 @@ void cleanup_restart_file(job *pjob);
 
 int record_jobinfo(job *pjob);
 
-void job_purge(job *pjob);
+int job_purge(job *pjob);
 
 char *get_correct_jobname(const char *jobid);
 

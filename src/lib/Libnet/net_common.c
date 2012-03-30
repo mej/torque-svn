@@ -14,13 +14,14 @@
 #include <arpa/inet.h> /* in_addr_t */
 #include <errno.h> /* errno */
 #include <fcntl.h> /* fcntl, F_GETFL */
+#include <sys/time.h> /* gettimeofday */
 #include "../lib/Liblog/pbs_log.h" /* log_err */
+#include "log.h" /* LOCAL_LOG_BUF_SIZE */
 
 #include "pbs_error.h" /* torque error codes */
 
 extern time_t pbs_tcp_timeout; /* located in tcp_dis.c. Move here later */
 
-#define LOCAL_LOG_BUF 1024
 #define RES_PORT_START 144
 #define RES_PORT_END (IPPORT_RESERVED - 1)
 #define RES_PORT_RANGE (RES_PORT_END - RES_PORT_START + 1)
@@ -263,7 +264,7 @@ int socket_connect_addr(
   {
   int cntr = 0;
   int rc = PBSE_NONE;
-  char tmp_buf[LOCAL_LOG_BUF];
+  char tmp_buf[LOCAL_LOG_BUF_SIZE+1];
   const char id[] = "socket_connect_addr";
 
   while ((rc = connect(*local_socket, remote, remote_size)) != 0)
@@ -272,7 +273,7 @@ int socket_connect_addr(
     switch (errno)
       {
       case ECONNREFUSED:    /* Connection refused */
-        snprintf(tmp_buf, LOCAL_LOG_BUF, "cannot connect to port %d in %s - connection refused", *local_socket, id);
+        snprintf(tmp_buf, LOCAL_LOG_BUF_SIZE, "cannot connect to port %d in %s - connection refused", *local_socket, id);
         *error_msg = strdup(tmp_buf);
         rc = PBS_NET_RC_RETRY;
         close(*local_socket);
@@ -322,7 +323,7 @@ int socket_connect_addr(
         break;
 
       default:
-        snprintf(tmp_buf, LOCAL_LOG_BUF, "cannot connect to port %d in %s - errno:%d %s", *local_socket, id, errno, strerror(errno));
+        snprintf(tmp_buf, LOCAL_LOG_BUF_SIZE, "cannot connect to port %d in %s - errno:%d %s", *local_socket, id, errno, strerror(errno));
         *error_msg = strdup(tmp_buf);
         close(*local_socket);
         rc = PBSE_SOCKET_FAULT;
@@ -706,4 +707,53 @@ int socket_close(int socket)
   }
 
 
+
+int get_addr_info(char *name, struct sockaddr_in *sa_info, int retry)
+  {
+  int rc = PBSE_NONE;
+  int cntr = 0;
+  struct addrinfo *addr_info;
+  struct addrinfo hints;
+  char log_buf[LOCAL_LOG_BUF_SIZE+1];
+  struct timeval start_time;
+  struct timeval end_time;
+
+
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_family = PF_INET;
+
+  while (cntr < retry)
+    {
+    gettimeofday(&start_time, 0);
+    snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "%s call #%d", name, cntr);
+    log_record(PBSEVENT_SYSTEM, PBS_EVENTCLASS_REQUEST, __func__, log_buf);
+
+    if ((rc = getaddrinfo(name, NULL, &hints, &addr_info)) != 0)
+      {
+      gettimeofday(&end_time, 0);
+      snprintf(log_buf, LOCAL_LOG_BUF_SIZE,
+          "Can't get address information for [%s] - (%d-%s) [retry %d]time{%d}",
+          name, rc, gai_strerror(rc), cntr, (int)(end_time.tv_sec-start_time.tv_sec));
+      rc = PBSE_BADHOST;
+      log_err(rc, __func__, log_buf);
+      }
+    else
+      {
+      sa_info->sin_addr = ((struct sockaddr_in *)addr_info->ai_addr)->sin_addr;
+      sa_info->sin_family = AF_INET;
+      freeaddrinfo(addr_info);
+      gettimeofday(&end_time, 0);
+/*      snprintf(log_buf, LOCAL_LOG_BUF_SIZE,
+          "Success resolving %s. Elapsed call time {%d}",
+          name, (int)(end_time.tv_sec-start_time.tv_sec));
+      log_err(-1, __func__, log_buf);
+      */
+      rc = PBSE_NONE;
+      break;
+      }
+    cntr++;
+    }
+  return rc;
+  }
 

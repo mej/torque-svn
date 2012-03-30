@@ -122,6 +122,7 @@
 #include "queue_func.h" /* get_dfltque, find_queuebyname */
 #include "svr_func.h" /* get_svr_attr_* */
 #include "threadpool.h"
+#include "job_func.h" /* job_purge */
 
 
 #include "work_task.h"

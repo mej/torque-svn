@@ -7,11 +7,8 @@
 #include "net_connect.h" /* conn_type */
 
 int svr_connect(pbs_net_t hostaddr, unsigned int port, int *local_errno, struct pbsnode *pnode, void *(*func)(void *), enum conn_type cntype);
-
+void svr_disconnect_sock(int handle);
 void svr_disconnect(int handle);
-
 int get_connection_entry(int *conn_pos);
-
 char *parse_servername(char *name, unsigned int *service);
-
 #endif /* _SVR_CONNECT_H */

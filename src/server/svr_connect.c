@@ -296,6 +296,18 @@ static void localalm(
 
 
 
+void svr_disconnect_sock(
+    int handle)
+  {
+  int sock = 0;
+  if ((handle >=0) && (handle < PBS_LOCAL_CONNECTION))
+    {
+    pthread_mutex_lock(connection[handle].ch_mutex);
+    sock = connection[handle].ch_socket;
+    pthread_mutex_unlock(connection[handle].ch_mutex);
+    close_conn(sock, FALSE);
+    }
+  }
 
 
 

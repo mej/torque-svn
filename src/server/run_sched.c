@@ -251,6 +251,7 @@ int schedule_jobs(void)
   int cmd;
 
   static int first_time = 1;
+  int tmp_sched_sock = -1;
 
   pthread_mutex_lock(svr_do_schedule_mutex);
 
@@ -265,30 +266,30 @@ int schedule_jobs(void)
   pthread_mutex_unlock(svr_do_schedule_mutex);
 
   pthread_mutex_lock(scheduler_sock_jobct_mutex);
-
   if (scheduler_sock == -1)
-    {
     scheduler_jobct = 0;
+  else
+    tmp_sched_sock = scheduler_sock;
+  pthread_mutex_unlock(scheduler_sock_jobct_mutex);
 
-    if ((scheduler_sock = contact_sched(cmd)) < 0)
+  if (tmp_sched_sock != -1)
+    {
+    if ((tmp_sched_sock = contact_sched(cmd)) < 0)
       {
-      pthread_mutex_unlock(scheduler_sock_jobct_mutex);
       return(-1);
       }
-      
+    pthread_mutex_lock(scheduler_sock_jobct_mutex);
+    scheduler_sock = tmp_sched_sock;
     pthread_mutex_unlock(scheduler_sock_jobct_mutex);
 
     first_time = 0;
 
     return(0);
     }
-  else
-    {
-    pthread_mutex_unlock(scheduler_sock_jobct_mutex);
-    }
-
   return(1);
   }  /* END schedule_jobs() */
+
+
 
 void *start_process_request(void *vp)
   {

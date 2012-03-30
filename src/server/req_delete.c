@@ -112,7 +112,7 @@
 #include "array.h"
 #include "utils.h"
 #include "svr_func.h" /* get_svr_attr_* */
-
+#include "job_func.h" /* job_purge */
 
 #define PURGE_SUCCESS 1
 #define MOM_DELETE    2

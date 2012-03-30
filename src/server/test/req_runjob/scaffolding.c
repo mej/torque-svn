@@ -72,7 +72,7 @@ char *find_ts_node(void)
   exit(1);
   }
 
-void stat_mom_job(job *pjob)
+void stat_mom_job(char *job_id)
   {
   fprintf(stderr, "The call to stat_mom_job to be mocked!!\n");
   exit(1);
