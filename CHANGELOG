@@ -35,6 +35,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   b - Fix so child pbs_mom does not remain running after qdel on slow starting job.
       TRQ-860.
   b - Made it so the MOM will let pbs_server know it is down after momctl -s is invoked.
+  b - Fix so pbs_mom won't segfault after a qdel is done for a job that is still
+      running the prologue. TRQ-832.
 
 4.0.0
   e - make a threadpool for TORQUE server. The number of threads is 
