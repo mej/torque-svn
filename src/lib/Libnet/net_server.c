@@ -895,12 +895,12 @@ void close_conn(
     pthread_mutex_unlock(global_sock_read_mutex);
     }
 
-  close(sd);
   svr_conn[sd].cn_addr = 0;
   svr_conn[sd].cn_handle = -1;
   svr_conn[sd].cn_active = Idle;
   svr_conn[sd].cn_func = (void *(*)())0;
   svr_conn[sd].cn_authen = 0;
+  close(sd);
     
   if (has_mutex == FALSE)
     pthread_mutex_unlock(svr_conn[sd].cn_mutex);

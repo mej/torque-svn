@@ -856,6 +856,7 @@ int verify_moms_up(
     /* Connect to the host. */
     if (connect(sock, (struct sockaddr *)&saddr, sizeof(saddr)) < 0)
       {
+      close(sock);
       sprintf(log_buf, "could not contact %s (connect failed, errno: %d (%s))",
         nodestr,
         errno,

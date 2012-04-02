@@ -452,16 +452,19 @@ int issue_Drequest(
     DIS_tcp_setup(sock);
     }
 
-  ptask = set_task(wt, (long)conn, func, (void *)request, FALSE);
-
-  if (ppwt != NULL)
-    *ppwt = ptask;
-
-  if (ptask == NULL)
+  if (func != NULL)
     {
-    log_err(errno, id, "could not set_task");
+    ptask = set_task(wt, (long)conn, func, (void *)request, FALSE);
 
-    return(-1);
+    if (ppwt != NULL)
+      *ppwt = ptask;
+
+    if (ptask == NULL)
+      {
+      log_err(errno, id, "could not set_task");
+      close_conn(sock, FALSE);
+      return(-1);
+      }
     }
 
   if (conn == PBS_LOCAL_CONNECTION)

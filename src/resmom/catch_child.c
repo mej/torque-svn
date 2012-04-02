@@ -1060,6 +1060,7 @@ void *preobit_reply(
   while ((irtn = DIS_reply_read(sock, &preq->rq_reply)) &&
          (errno == EINTR));
 
+  pbs_disconnect_socket(sock);
   close_conn(sock, FALSE);
 
   if (irtn != 0)
@@ -1603,7 +1604,7 @@ void *obit_reply(
 
   free_br(preq);
 
-/*  pbs_disconnect_socket(sock); */
+  pbs_disconnect_socket(sock);
   close_conn(sock, FALSE);
 
   if (PBSNodeCheckEpilog)

@@ -3172,7 +3172,7 @@ int write_status_strings(
 /*      } */
     }
 
-  close(fds);
+  pbs_disconnect_socket(fds);
   nc->stream = -1;
  
   return(rc);

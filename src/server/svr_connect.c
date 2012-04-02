@@ -330,8 +330,8 @@ void svr_disconnect(
   if ((handle >= 0) && (handle < PBS_LOCAL_CONNECTION))
     {
     pthread_mutex_lock(connection[handle].ch_mutex);
-
     sock = connection[handle].ch_socket;
+    pthread_mutex_unlock(connection[handle].ch_mutex);
 
     DIS_tcp_setup(sock);
 
@@ -366,6 +366,8 @@ void svr_disconnect(
 
       }
 
+
+    pthread_mutex_lock(connection[handle].ch_mutex);
     shutdown(connection[handle].ch_socket, 2);
 
     close_conn(connection[handle].ch_socket, FALSE);

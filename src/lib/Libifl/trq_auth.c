@@ -58,7 +58,7 @@ int build_request_svr(
   int len = 0;
   int user_ll = 0, user_len = 0, port_len = 0;
   char *resp_msg;
-  char tmp_buf[8];
+  char tmp_buf[13];
   len += 2 + 2 + 4;
   user_len = strlen(user);
   sprintf(tmp_buf, "%d", user_len);

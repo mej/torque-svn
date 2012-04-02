@@ -288,6 +288,7 @@ int req_stat_job(
     if (pque != NULL) 
       unlock_queue(pque, "req_stat_job", "invalid", LOGLEVEL);
     req_reject(rc, 0, preq, NULL, NULL);
+    close_conn(preq->rq_conn, FALSE);
     return(rc);
     }
 
