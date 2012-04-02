@@ -1119,7 +1119,14 @@ void *handle_scheduler_contact(
 
 void *start_accept_listener()
   {
-  start_listener_addrinfo(server_name, pbs_server_port_dis, start_process_pbs_server_port);
+  char server_name_trimmed[PBS_MAXSERVERNAME + 1];
+  char *colon_pos = NULL;
+  colon_pos = strchr(server_name, ':');
+  if (colon_pos == NULL)
+    strcpy(server_name_trimmed, server_name);
+  else
+    strncpy(server_name_trimmed, server_name, colon_pos - server_name);
+  start_listener_addrinfo(server_name_trimmed, pbs_server_port_dis, start_process_pbs_server_port);
   return NULL;
   }
 
