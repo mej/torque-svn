@@ -842,9 +842,11 @@ void close_conn(
 
   {
 /*  int rc;*/
-  char log_message[LOG_BUF_SIZE];
+  char log_message[LOG_BUF_SIZE+1];
   if ((sd < 0) || (max_connection <= sd))
     {
+    snprintf(log_message, LOG_BUF_SIZE, "sd is invalid %d!!!", sd);
+    log_event(PBSEVENT_SYSTEM,PBS_EVENTCLASS_NODE,__func__,log_message);
     return;
     }
 
@@ -856,7 +858,7 @@ void close_conn(
     /* apparently we did not add the socket to the connection table */
 
     snprintf(log_message, LOG_BUF_SIZE, "%s: svr_conn[%d] is idle", __func__, sd);
-    log_event(PBSEVENT_SYSTEM,PBS_EVENTCLASS_NODE,"close_conn",log_message);
+    log_event(PBSEVENT_SYSTEM,PBS_EVENTCLASS_NODE,__func__,log_message);
 
 /*    rc = close(sd);
     if (rc == 0)
@@ -879,7 +881,7 @@ void close_conn(
     {
     snprintf(log_message, LOG_BUF_SIZE, "Connection %d - func %lx",
         sd, (unsigned long)svr_conn[sd].cn_oncl);
-    log_event(PBSEVENT_SYSTEM,PBS_EVENTCLASS_NODE,"close_conn",log_message);
+    log_event(PBSEVENT_SYSTEM,PBS_EVENTCLASS_NODE,__func__,log_message);
     svr_conn[sd].cn_oncl(sd);
     }
 

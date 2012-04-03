@@ -727,6 +727,7 @@ int issue_Drequest(
     request->rq_reply.brp_code = tmp_rc;
     request->rq_reply.brp_choice = BATCH_REPLY_CHOICE_NULL;
     }
+  connection_clear(conn);
   close_conn(sock, FALSE);
   if (func != NULL)
     dispatch_task(ptask);
