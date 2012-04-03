@@ -10,7 +10,7 @@ DIST_SUBDIRS = aix4 aix5 cygwin darwin digitalunix freebsd freebsd5 fujitsu \
 	hpux10 hpux11 irix5 irix6 irix6array linux netbsd solaris5 solaris7 sunos4 \
 	unicos8 unicosmk2
 
-include_HEADERS = catch_child.h checkpoint.h mom_comm.h mom_main.h mom_process_request.h mom_requests.h mom_server_lib.h prolog.h
+include_HEADERS = catch_child.h checkpoint.h mom_comm.h mom_main.h mom_process_request.h mom_requests.h mom_server_lib.h prolog.h mom_job_func.h
 
 AM_CPPFLAGS += -I$(top_srcdir)/src/resmom/@PBS_MACH@ -DPBS_MOM \
 	       -DDEMUX=\"$(program_prefix)$(DEMUX_PATH)$(program_suffix)\" \
