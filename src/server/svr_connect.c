@@ -296,6 +296,19 @@ static void localalm(
 
 
 
+void connection_clear(
+   int con_pos)
+  {
+  pthread_mutex_lock(connection[con_pos].ch_mutex);
+  connection[con_pos].ch_errtxt = 0;
+  connection[con_pos].ch_inuse = FALSE;
+  connection[con_pos].ch_socket = -1;
+  connection[con_pos].ch_stream = 0;
+  pthread_mutex_unlock(connection[con_pos].ch_mutex);
+  }
+
+
+
 void svr_disconnect_sock(
     int handle)
   {

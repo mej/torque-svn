@@ -6,6 +6,7 @@
 #include "pbs_nodes.h" /* pbsnode */
 #include "net_connect.h" /* conn_type */
 
+void connection_clear(int con_pos);
 int svr_connect(pbs_net_t hostaddr, unsigned int port, int *local_errno, struct pbsnode *pnode, void *(*func)(void *), enum conn_type cntype);
 void svr_disconnect_sock(int handle);
 void svr_disconnect(int handle);
