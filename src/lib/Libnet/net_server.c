@@ -312,10 +312,9 @@ int init_network(
       {
       svr_conn[i].cn_mutex = (pthread_mutex_t *)calloc(1, sizeof(pthread_mutex_t));
       pthread_mutex_init(svr_conn[i].cn_mutex,NULL);
+
       pthread_mutex_lock(svr_conn[i].cn_mutex);
-      
       svr_conn[i].cn_active = Idle;
-      
       pthread_mutex_unlock(svr_conn[i].cn_mutex);
       }
     
@@ -548,7 +547,6 @@ int wait_request(
         pthread_mutex_lock(global_sock_read_mutex);
         FD_CLR(i, GlobalSocketReadSet);
         pthread_mutex_unlock(global_sock_read_mutex);
-        pthread_mutex_unlock(svr_conn[i].cn_mutex);
 
         } /* END for each socket in global read set */
 
@@ -591,13 +589,13 @@ int wait_request(
         }
       else
         {
+        pthread_mutex_unlock(svr_conn[i].cn_mutex);
         pthread_mutex_lock(global_sock_read_mutex);
         FD_CLR(i, GlobalSocketReadSet);
         pthread_mutex_unlock(global_sock_read_mutex);
 
-        close_conn(i, TRUE);
+        close_conn(i, FALSE);
 
-        pthread_mutex_unlock(svr_conn[i].cn_mutex);
         pthread_mutex_lock(num_connections_mutex);
 
         sprintf(tmpLine, "closed connections to fd %d - num_connections=%d (select bad socket)",
@@ -841,7 +839,7 @@ void close_conn(
   int has_mutex) /* I */
 
   {
-/*  int rc;*/
+  int rc;
   char log_message[LOG_BUF_SIZE+1];
   if ((sd < 0) || (max_connection <= sd))
     {
@@ -870,8 +868,9 @@ void close_conn(
       svr_conn[sd].cn_func = (void *(*)())0;
       svr_conn[sd].cn_authen = 0;
       }*/
-    
-    pthread_mutex_unlock(svr_conn[sd].cn_mutex);
+   
+    if (has_mutex == FALSE) 
+      pthread_mutex_unlock(svr_conn[sd].cn_mutex);
     return;
     }
 
@@ -902,7 +901,7 @@ void close_conn(
   svr_conn[sd].cn_active = Idle;
   svr_conn[sd].cn_func = (void *(*)())0;
   svr_conn[sd].cn_authen = 0;
-  close(sd);
+  rc = close(sd);
     
   if (has_mutex == FALSE)
     pthread_mutex_unlock(svr_conn[sd].cn_mutex);
@@ -1016,18 +1015,9 @@ int get_connecthost(
   struct sockaddr_in      addr_in;
   static struct in_addr   serveraddr;
   static char            *server_name = NULL;
-  static pthread_mutex_t *get_connecthost_mutex = NULL;
-
-  if (get_connecthost_mutex == NULL)
-    {
-    get_connecthost_mutex = calloc(1, sizeof(pthread_mutex_t));
-    pthread_mutex_init(get_connecthost_mutex,NULL);
-    }
 
   addr_in.sin_family = AF_INET;
   addr_in.sin_port = 0;
-  pthread_mutex_lock(get_connecthost_mutex);
-
   if ((server_name == NULL) && (pbs_server_addr != 0))
     {
     /* cache local server addr info */
@@ -1074,9 +1064,6 @@ int get_connecthost(
       /* already in namebuf, NO-OP */
       }
     }
-
-  /* SUCCESS */
-  pthread_mutex_unlock(get_connecthost_mutex);
 
   return(0);
   }  /* END get_connecthost() */

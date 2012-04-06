@@ -320,14 +320,24 @@ int process_request(
   time_t                time_now = time(NULL);
   int                   free_request = TRUE;
   char                  tmpLine[MAXLINE];
-  int                   unlock_mutex = TRUE;
   char                 *auth_err = NULL;
+  enum conn_type        conn_active;
+  unsigned short        conn_socktype;
+  unsigned short        conn_authen;
+  unsigned long         conn_addr;
+
+  pthread_mutex_lock(svr_conn[sfds].cn_mutex);
+  conn_active = svr_conn[sfds].cn_active;
+  conn_socktype = svr_conn[sfds].cn_socktype;
+  conn_authen = svr_conn[sfds].cn_authen;
+  conn_addr = svr_conn[sfds].cn_addr;
+  pthread_mutex_unlock(svr_conn[sfds].cn_mutex);
 
   if ((request = alloc_br(0)) == NULL)
     {
     snprintf(tmpLine, sizeof(tmpLine),
         "cannot allocate memory for request from %lu",
-        get_connectaddr(sfds,FALSE));
+        conn_addr);
     req_reject(PBSE_BADHOST, 0, request, NULL, tmpLine);
     free_request = FALSE;
     rc = PBSE_SYSTEM;
@@ -340,14 +350,12 @@ int process_request(
    * Read in the request and decode it to the internal request structure.
    */
 
-  pthread_mutex_lock(svr_conn[sfds].cn_mutex);
-
-  if (svr_conn[sfds].cn_active == FromClientDIS)
+  if (conn_active == FromClientDIS)
     {
 #ifdef ENABLE_UNIX_SOCKETS
 
-    if ((svr_conn[sfds].cn_socktype & PBS_SOCK_UNIX) &&
-        (svr_conn[sfds].cn_authen != PBS_NET_CONN_AUTHENTICATED))
+    if ((conn_socktype & PBS_SOCK_UNIX) &&
+        (conn_authen != PBS_NET_CONN_AUTHENTICATED))
       {
       /* get_creds interestingly always returns 0 */
       get_creds(sfds, conn_credent[sfds].username, conn_credent[sfds].hostname);
@@ -362,9 +370,7 @@ int process_request(
       "process_req", "request on invalid type of connection");
     snprintf(tmpLine, sizeof(tmpLine),
         "request on invalid type of connection from%lu",
-        get_connectaddr(sfds,FALSE));
-    pthread_mutex_unlock(svr_conn[sfds].cn_mutex);
-    unlock_mutex = FALSE;
+        conn_addr);
     req_reject(PBSE_BADHOST, 0, request, NULL, tmpLine);
     free_request = FALSE;
     rc = PBSE_BADHOST;
@@ -396,8 +402,6 @@ int process_request(
      * request type, in either case, return reject-reply
      */
 
-    pthread_mutex_unlock(svr_conn[sfds].cn_mutex);
-    unlock_mutex = FALSE;
     req_reject(rc, 0, request, NULL, "cannot decode message");
     free_request = FALSE;
     goto process_request_cleanup;
@@ -407,16 +411,14 @@ int process_request(
     {
     sprintf(log_buf, "%s: %lu",
       pbse_to_txt(PBSE_BADHOST),
-      get_connectaddr(sfds,FALSE));
+      conn_addr);
 
     log_event(PBSEVENT_DEBUG, PBS_EVENTCLASS_REQUEST, "", log_buf);
 
     snprintf(tmpLine, sizeof(tmpLine),
         "cannot determine hostname for connection from %lu",
-        get_connectaddr(sfds,FALSE));
+        conn_addr);
 
-    pthread_mutex_unlock(svr_conn[sfds].cn_mutex);
-    unlock_mutex = FALSE;
     req_reject(PBSE_BADHOST, 0, request, NULL, tmpLine);
     free_request = FALSE;
     rc = PBSE_BADHOST;
@@ -437,7 +439,7 @@ int process_request(
 
   /* is the request from a host acceptable to the server */
 
-  if (svr_conn[sfds].cn_socktype & PBS_SOCK_UNIX)
+  if (conn_socktype & PBS_SOCK_UNIX)
     {
     strcpy(request->rq_host, server_name);
     }
@@ -450,7 +452,7 @@ int process_request(
     struct pbsnode       *isanode;
 
     get_svr_attr_arst(SRV_ATR_acl_hosts, &pas);
-    isanode = PGetNodeFromAddr(get_connectaddr(sfds,FALSE));
+    isanode = PGetNodeFromAddr(conn_addr);
 
     if ((isanode == NULL) &&
         (strcmp(server_host, request->rq_host) != 0) &&
@@ -460,8 +462,6 @@ int process_request(
       snprintf(tmpLine, sizeof(tmpLine), "request not authorized from host %s",
                request->rq_host);
 
-      pthread_mutex_unlock(svr_conn[sfds].cn_mutex);
-      unlock_mutex = FALSE;
       req_reject(PBSE_BADHOST, 0, request, NULL, tmpLine);
       free_request = FALSE;
       rc = PBSE_BADHOST;
@@ -477,7 +477,7 @@ int process_request(
    * set the permissions granted to the client
    */
 
-  if (svr_conn[sfds].cn_authen == PBS_NET_CONN_FROM_PRIVIL)
+  if (conn_authen == PBS_NET_CONN_FROM_PRIVIL)
     {
     /* request came from another server */
 
@@ -516,10 +516,8 @@ int process_request(
       {
       req_connect(request);
 
-      if (svr_conn[sfds].cn_socktype == PBS_SOCK_INET)
+      if (conn_socktype == PBS_SOCK_INET)
         {
-        pthread_mutex_unlock(svr_conn[sfds].cn_mutex);
-        unlock_mutex = FALSE;
         rc = PBSE_IVALREQ;
         req_reject(rc, 0, request, NULL, NULL);
         free_request = FALSE;
@@ -528,9 +526,11 @@ int process_request(
 
       }
 
-    if (svr_conn[sfds].cn_socktype & PBS_SOCK_UNIX)
+    if (conn_socktype & PBS_SOCK_UNIX)
       {
+      pthread_mutex_lock(svr_conn[sfds].cn_mutex);
       svr_conn[sfds].cn_authen = PBS_NET_CONN_AUTHENTICATED;
+      pthread_mutex_unlock(svr_conn[sfds].cn_mutex);
       }
 
     if (ENABLE_TRUSTED_AUTH == TRUE )
@@ -540,8 +540,6 @@ int process_request(
       /* If munge_on is true we will validate the connection now */
       if (request->rq_type == PBS_BATCH_AltAuthenUser)
         {
-        if (unlock_mutex == TRUE)
-          pthread_mutex_unlock(svr_conn[sfds].cn_mutex);
         rc = req_altauthenuser(request); 
         }
       else
@@ -549,7 +547,7 @@ int process_request(
         rc = authenticate_user(request, &conn_credent[sfds], &auth_err);
         }
       }
-    else if (svr_conn[sfds].cn_authen != PBS_NET_CONN_AUTHENTICATED)
+    else if (conn_authen != PBS_NET_CONN_AUTHENTICATED)
       /* skip checking user if we did not get an authenticated credential */
       rc = PBSE_BADCRED;
     else
@@ -557,8 +555,6 @@ int process_request(
 
     if (rc != 0)
       {
-      pthread_mutex_unlock(svr_conn[sfds].cn_mutex);
-      unlock_mutex = FALSE;
       req_reject(rc, 0, request, NULL, auth_err);
       if (auth_err != NULL)
         free(auth_err);
@@ -634,8 +630,6 @@ int process_request(
       case PBS_BATCH_StageIn:
       case PBS_BATCH_jobscript:
 
-        pthread_mutex_unlock(svr_conn[sfds].cn_mutex);
-        unlock_mutex = FALSE;
         req_reject(PBSE_SVRDOWN, 0, request, NULL, NULL);
         rc = PBSE_SVRDOWN;
         free_request = FALSE;
@@ -645,8 +639,6 @@ int process_request(
         break;
       }
     }
-
-  pthread_mutex_unlock(svr_conn[sfds].cn_mutex);
 
   /*
    * dispatch the request to the correct processing function.
@@ -660,9 +652,7 @@ int process_request(
 
 process_request_cleanup:
 
-  close_conn(sfds, TRUE);
-  if (unlock_mutex == TRUE)
-    pthread_mutex_unlock(svr_conn[sfds].cn_mutex);
+  close_conn(sfds, FALSE);
 
   if (free_request == TRUE)
     free_br(request);
@@ -703,7 +693,7 @@ int dispatch_request(
     {
     case PBS_BATCH_QueueJob:
 
-      net_add_close_func(sfds, close_quejob, FALSE);
+      net_add_close_func(sfds, close_quejob);
 
       rc = req_quejob(request);
 
@@ -729,7 +719,7 @@ int dispatch_request(
 
       rc = req_commit(request);
 
-      net_add_close_func(sfds, (void (*)())0, FALSE);
+      net_add_close_func(sfds, NULL);
 
       break;
 
@@ -956,11 +946,7 @@ int dispatch_request(
 
       req_reject(PBSE_UNKREQ, 0, request, NULL, NULL);
 
-      pthread_mutex_lock(svr_conn[sfds].cn_mutex);
-
-      close_conn(sfds, TRUE);
-      
-      pthread_mutex_unlock(svr_conn[sfds].cn_mutex);
+      close_conn(sfds, FALSE);
 
       break;
     }  /* END switch (request->rq_type) */

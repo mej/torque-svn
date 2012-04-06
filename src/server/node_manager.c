@@ -168,7 +168,6 @@ extern char *path_nodes_new;
 extern char *path_nodestate;
 extern char *path_nodenote;
 extern char *path_nodenote_new;
-extern unsigned int pbs_mom_port;
 extern char  server_name[];
 
 extern struct server server;
@@ -674,6 +673,47 @@ int is_job_on_node(
 
 
 
+/* If nodes have similiar names this will make sure the name is an exact match.
+ * Not just found inside another name.
+ * i.e. Machines by the name of gpu, gpuati, gpunvidia. If searching for gpu...
+ * List format is similiar to: gpuati+gpu/1+gpunvidia/4+gpu/5
+ */
+int node_in_exechostlist(
+    char *node_name,
+    char *node_ehl)
+  {
+  int rc = FALSE;
+  char *cur_pos = node_ehl;
+  char *new_pos = cur_pos;
+  int name_len = strlen(node_name);
+  while (1)
+    {
+    if ((new_pos = strstr(cur_pos, node_name)) == NULL)
+      break;
+    else if (new_pos == node_ehl)
+      {
+      if ((new_pos+name_len == NULL)
+        || (*(new_pos+name_len) == '+')
+        || (*(new_pos+name_len) == '/'))
+        {
+        rc = TRUE;
+        break;
+        }
+      }
+    else if (*(new_pos-1) == '+')
+      {
+      if ((new_pos+name_len == NULL)
+        || (*(new_pos+name_len) == '+')
+        || (*(new_pos+name_len) == '/'))
+        {
+        rc = TRUE;
+        break;
+        }
+      }
+    cur_pos = new_pos+1;
+    }
+  return rc;
+  }
 
 /*
  * sync_node_jobs() - determine if a MOM has a stale job and possibly delete it
@@ -702,8 +742,11 @@ void *sync_node_jobs(
   struct batch_request *preq;
   int                   conn;
   int                   local_errno = 0;
+  unsigned long         node_addr;
+  unsigned short        node_port;
 
   job                  *pjob;
+  char  node_name[PBS_MAXHOSTNAME + 1];
 
   if (vp == NULL)
     return(NULL);
@@ -719,7 +762,8 @@ void *sync_node_jobs(
   else
     {
     /* bad input */
-
+    if (raw_input != NULL)
+      free(raw_input);
     return(NULL);
     }
 
@@ -735,29 +779,35 @@ void *sync_node_jobs(
   joblist = jobstring_in;
   jobidstr = threadsafe_tokenizer(&joblist, " ");
 
-  if ((np = find_nodebyname(node_id)) != NULL)
+  while ((jobidstr != NULL) && isdigit(*jobidstr))
     {
-    while ((jobidstr != NULL) && isdigit(*jobidstr))
+    if ((np = find_nodebyname(node_id)) != NULL)
       {
+      node_addr = np->nd_addrs[0];
+      node_port = np->nd_mom_port;
+      memset(node_name, 0, PBS_MAXHOSTNAME);
+      strncpy(node_name, np->nd_name, PBS_MAXHOSTNAME);
       if (strstr(jobidstr, server_name) != NULL)
         {
         if ((is_job_on_node(np, jobidstr)) == FALSE)
           {
+          unlock_node(np, __func__, "is_job_on_node == FALSE", LOGLEVEL);
+          np = NULL;
           pjob = find_job(jobidstr);
           
           if (pjob != NULL)
             {
-            /* job exists, but doesn't currently have resources assigned to this node */
-            
-            /* double check the job struct because we could be in the middle of moving
-               the job around because of data staging, suspend, or rerun */            
+            /* job exists, but doesn't currently have resources assigned
+             * to this node double check the job struct because we
+             * could be in the middle of moving the job around because
+             * of data staging, suspend, or rerun */            
             if (pjob->ji_wattr[JOB_ATR_exec_host].at_val.at_str == NULL)
               {
               pthread_mutex_unlock(pjob->ji_mutex);
               
               pjob = NULL;
               }
-            else if (strstr(pjob->ji_wattr[JOB_ATR_exec_host].at_val.at_str, np->nd_name) == NULL)
+            else if (node_in_exechostlist(pjob->ji_wattr[JOB_ATR_exec_host].at_val.at_str, node_name) == FALSE)
               {
               pthread_mutex_unlock(pjob->ji_mutex);
               
@@ -770,13 +820,9 @@ void *sync_node_jobs(
           if (pjob == NULL)
             {
             /* job is reported by mom but server has no record of job */
-            sprintf(log_buf, "stray job %s found on %s", jobidstr, np->nd_name);
+            sprintf(log_buf, "stray job %s found on %s", jobidstr, node_name);
             log_err(-1, __func__, log_buf);
-            
-            /* NOTE:  node is actively reporting so should not be deleted and
-               np->nd_addrs[] should not be NULL */            
-            conn = svr_connect(np->nd_addrs[0],pbs_mom_port,&local_errno,np,NULL,ToServerDIS);
-            
+            conn = svr_connect(node_addr,node_port,&local_errno,NULL,NULL,ToServerDIS);
             if (conn >= 0)
               {
               if ((preq = alloc_br(PBS_BATCH_DeleteJob)) == NULL)
@@ -795,13 +841,11 @@ void *sync_node_jobs(
             }
           } /* END is_job_on_node == NULL */
         }
-      
-      jobidstr = threadsafe_tokenizer(&joblist, " ");
-      }  /* END while ((jobidstr != NULL) && ...) */
-    
-    if (np != NULL)
-      unlock_node(np, __func__, "done syncing node jobs", LOGLEVEL);
-    } /* end if np != NULL */
+      if (np != NULL)
+        unlock_node(np, __func__, "end job check", LOGLEVEL);
+      } /* end if np != NULL */
+    jobidstr = threadsafe_tokenizer(&joblist, " ");
+    }  /* END while ((jobidstr != NULL) && ...) */
 
   /* SUCCESS */
   free(raw_input);
@@ -1464,8 +1508,12 @@ int process_status_info(
       size_t  len = strlen(str) + strlen(current->nd_name) + 2;
       char   *jobstr = calloc(1, len);
 
-      sprintf(jobstr, "%s:%s", current->nd_name, str);
-      enqueue_threadpool_request(sync_node_jobs, jobstr);
+      if (jobstr != NULL)
+        {
+        sprintf(jobstr, "%s:%s", current->nd_name, str+5);
+        /* jobstr must be freed in sync_node_jobs */
+        enqueue_threadpool_request(sync_node_jobs, jobstr);
+        }
       }
     else if (auto_np)
       {

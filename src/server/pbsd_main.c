@@ -468,6 +468,7 @@ void *start_process_pbs_server_port(void *new_sock)
     {
     rc = process_pbs_server_port(sock);
     }
+  close_conn(sock, FALSE);
   /* Thread exit */
   return(NULL);
   }

@@ -83,7 +83,7 @@ int get_connecthost(int sock, char *namebuf, int size);
 char *netaddr_pbs_net_t(pbs_net_t ipadd);
 
 /* from file net_set_clse.c */
-void net_add_close_func(int, void (*func)(int), int);
+void net_add_close_func(int, void (*func)(int));
  
 /* from file port_forwarding.c */
 void port_forwarder(struct pfwdsock *socks, int (*connfunc)(char *, int, char *), char *phost, int pport, char *EMsg);
