@@ -384,7 +384,7 @@ void *get_next(
             file,
             line);
 
-    abort();
+    return NULL;
     }
 
   return(pl.ll_next->ll_struct);
