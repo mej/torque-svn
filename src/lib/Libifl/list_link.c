@@ -407,7 +407,7 @@ void *get_prior(
             file,
             line);
 
-    abort();
+    return NULL;
     }
 
   return(pl.ll_prior->ll_struct);
