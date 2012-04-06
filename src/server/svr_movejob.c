@@ -787,7 +787,7 @@ int send_job_work(
       sleep(1 << NumRetries);
       }
 
-    if ((con = svr_connect(hostaddr, port, my_err, NULL, 0, cntype)) == PBS_NET_RC_FATAL)
+    if ((con = svr_connect(hostaddr, port, my_err, NULL, NULL, cntype)) == PBS_NET_RC_FATAL)
       {
       sprintf(log_buf, "send_job failed to host %s, %lx port %d",
         (destin != NULL) ? destin : "unknown host",

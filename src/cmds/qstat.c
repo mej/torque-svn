@@ -1135,7 +1135,10 @@ void display_statjob(
               }
             else
               {
-              prt_attr(a->name, a->resource, a->value);
+              if ((!strcmp(a->name, "Walltime")) && (a->value[0] == '-'))
+                prt_attr(a->name, "Exceeded", a->value);
+              else
+                prt_attr(a->name, a->resource, a->value);
 
               printf("\n");
               }

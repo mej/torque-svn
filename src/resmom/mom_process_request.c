@@ -304,7 +304,7 @@ void mom_dispatch_request(
     {
     case PBS_BATCH_QueueJob:
 
-      net_add_close_func(sfds, close_quejob, FALSE);
+      net_add_close_func(sfds, close_quejob);
 
       req_quejob(request);
       
@@ -332,7 +332,7 @@ void mom_dispatch_request(
 
       req_commit(request);
 
-      net_add_close_func(sfds, (void (*)())0, FALSE);
+      net_add_close_func(sfds, NULL);
 
       break;
 

@@ -116,6 +116,7 @@
 #include "dis.h"
 #include "../lib/Libnet/lib_net.h" /* get_connection_entry */
 #include "../lib/Liblog/pbs_log.h" /* print_trace */
+#include "node_func.h" /* addr_ok */
 
 
 /* global data */
@@ -132,7 +133,6 @@ extern int               LOGLEVEL;
 extern void    bad_node_warning(pbs_net_t, struct pbsnode *);
 extern ssize_t read_blocking_socket(int, void *, ssize_t);
 extern int get_num_connections();
-int            addr_ok(pbs_net_t,struct pbsnode *);
 
 
 
@@ -251,9 +251,7 @@ int svr_connect(
     }
 
   pthread_mutex_lock(svr_conn[sock].cn_mutex);
-
   svr_conn[sock].cn_authen = PBS_NET_CONN_AUTHENTICATED;
-
   pthread_mutex_unlock(svr_conn[sock].cn_mutex);
 
   /* find a connect_handle entry we can use and pass to the PBS_*() */

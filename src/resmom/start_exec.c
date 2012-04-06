@@ -5614,10 +5614,12 @@ void sister_job_nodes(
     }
 
   pjob->ji_sisters = (hnodent *)calloc(nodenum + 1, sizeof(hnodent));
-  assert(pjob->ji_sisters);
+  if (pjob->ji_sisters == NULL)
+    return;
 
   pjob->ji_sister_vnods = (vnodent *)calloc(nodenum + 1, sizeof(vnodent));
-  assert(pjob->ji_sister_vnods);
+  if (pjob->ji_sister_vnods == NULL)
+    return;
 
   nhosts = 0;
 

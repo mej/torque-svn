@@ -5423,8 +5423,10 @@ void im_request(
   char               **envp = NULL;
   tm_event_t           event;
   fwdevent             efwd;
-  unsigned short       sender_port;
+  unsigned short       sender_port = -1;
   unsigned int         momport = 0;
+  char log_buffer[LOCAL_LOG_BUF_SIZE+1];
+  int awaiting_replies = 0;
 
   struct passwd       *check_pwd();
   
@@ -5469,13 +5471,13 @@ void im_request(
 
     if (ret == 0)
       {
-      snprintf(log_buffer, sizeof(log_buffer),
+      snprintf(log_buffer, LOCAL_LOG_BUF_SIZE,
         "bad connect from %s - unauthorized (okclients: %s)",
         netaddr(addr),
         tmp_line);
       }
     else
-      snprintf(log_buffer, sizeof(log_buffer),
+      snprintf(log_buffer, LOCAL_LOG_BUF_SIZE,
         "bad connect from %s - unauthorized (could not get ok clients %d)",
         netaddr(addr),
         ret);
@@ -5619,7 +5621,7 @@ void im_request(
 
     if (LOGLEVEL >= 0)
       {
-      snprintf(log_buffer, sizeof(log_buffer),
+      snprintf(log_buffer, LOCAL_LOG_BUF_SIZE,
         "ERROR:    received request '%s' from %s for job '%s' (job has corrupt cookie - '%s' != '%s')",
         PMOMCommand[MIN(command,IM_MAX)],
         netaddr(addr),
@@ -5972,7 +5974,7 @@ void im_request(
 
         default:
 
-          snprintf(log_buffer,sizeof(log_buffer),
+          snprintf(log_buffer,LOCAL_LOG_BUF_SIZE,
             "%s: job %s received event_com %d event %d. (IM_ALL_OKAY) No handler!!!\n",
             __func__, jobid, command, event_com);
             log_event(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,jobid,log_buffer);
@@ -6151,7 +6153,7 @@ void im_request(
             {
             if (LOGLEVEL >= 0)
               {
-              snprintf(log_buffer,sizeof(log_buffer),
+              snprintf(log_buffer,LOCAL_LOG_BUF_SIZE,
                 "ERROR: received request '%s' from %s for job '%s' (job does not exist locally):IM_RADIX_ALL_OK",
                 PMOMCommand[MIN(command,IM_MAX)],
                 netaddr(addr),
@@ -6297,7 +6299,7 @@ void im_request(
               
               if (LOGLEVEL >= 7)
                 {
-                snprintf(log_buffer,sizeof(log_buffer),
+                snprintf(log_buffer,LOCAL_LOG_BUF_SIZE,
                   "%s: %s FINAL from %d  cpu %lu sec  mem %lu kb  vmem %ld kb\n",
                   __func__,
                   jobid,
@@ -6323,7 +6325,7 @@ void im_request(
               /* all dead */
               if (LOGLEVEL >= 7)
                 {
-                snprintf(log_buffer,sizeof(log_buffer),
+                snprintf(log_buffer,LOCAL_LOG_BUF_SIZE,
                   "%s: ALL DONE, set EXITING job %s\n", 
                   __func__,
                   jobid);
@@ -6354,7 +6356,7 @@ void im_request(
           }
         
         default:
-          snprintf(log_buffer,sizeof(log_buffer),
+          snprintf(log_buffer,LOCAL_LOG_BUF_SIZE,
             "%s: job %s received event_com %d event %d. (IM_RADIX_ALL_OK) No handler!!!\n",
             __func__, jobid, command, event_com);
             log_event(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,jobid,log_buffer);
@@ -6374,6 +6376,10 @@ void im_request(
        ** )
        */
       errcode = disrsi(stream, &ret);
+      snprintf(log_buffer, LOCAL_LOG_BUF_SIZE,
+          "Response recieved from client %s (%d) jobid %s",
+          netaddr(addr), sender_port, jobid);
+      log_err(-1, __func__, log_buffer);
      
       if ((errcode == PBSE_UNKJOBID) && (event_com == TM_NULL_EVENT))
         event_com = IM_KILL_JOB;
@@ -6390,6 +6396,7 @@ void im_request(
         if ((ret = check_ms(stream, pjob)) == TRUE)
           {
           close_conn(stream, FALSE);
+          log_err(-1, __func__, "check_ms failed");
           goto err;
           }
         }
@@ -6431,7 +6438,7 @@ void im_request(
             }
           
           snprintf(log_buffer, sizeof(log_buffer),
-              "KILL/ABORT request for job %s returned error %d from %s (%d total nodes)\n",
+              "KILL/ABORT (job %s) request returned error %d from %s (%d total nodes)\n",
               jobid,
               errcode,
               netaddr(addr),
@@ -6445,17 +6452,33 @@ void im_request(
             if (pjob->ji_hosts[i].hn_sister == SISTER_OKAY)
               {
               snprintf(log_buffer, sizeof(log_buffer),
-                  "KILL still awaiting response from at least %s(%s)",
+                  "KILL (job %s) still awaiting response from %s(%s)",
+                  jobid,
                   pjob->ji_hosts[i].hn_host,
                   netaddr(&pjob->ji_hosts[i].sock_addr));
               log_err(errcode, __func__, log_buffer);
-              break;
+              awaiting_replies += 1;
               }
+            else
+              {
               snprintf(log_buffer, sizeof(log_buffer),
-                  "KILL received response from %s(%s)",
+                  "KILL (job %s)received response from %s(%s)",
+                  jobid,
                   pjob->ji_hosts[i].hn_host,
                   netaddr(&pjob->ji_hosts[i].sock_addr));
               log_event(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,jobid,log_buffer);
+              }
+            }
+          if (awaiting_replies > 0)
+            {
+            snprintf(log_buffer, LOCAL_LOG_BUF_SIZE,
+                "Still awaiting replies from %d systems", awaiting_replies);
+            log_event(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,jobid,log_buffer);
+            }
+          else
+            {
+            snprintf(log_buffer, LOCAL_LOG_BUF_SIZE,
+                "Job %s has received replies from all mom's", jobid);
             }
           
           if (i == pjob->ji_numnodes)
@@ -6608,10 +6631,9 @@ err:
    ** host has gone down.
    */
   
-  sprintf(log_buffer, "error processing command %d for job %s from %s",
-    command,
-    jobid ? jobid : "unknown",
-    netaddr(addr));
+  snprintf(log_buffer, LOCAL_LOG_BUF_SIZE,
+      "error processing command %d event_com %d for job %s from %s:(%d)",
+    command, event_com, jobid ? jobid : "unknown", netaddr(addr), sender_port);
   
   log_err(-1, id, log_buffer);
   

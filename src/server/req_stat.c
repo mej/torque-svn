@@ -474,6 +474,7 @@ static void req_stat_job_step2(
               {
               if ((pjob = find_job(pa->job_ids[job_array_index])) != NULL)
                 {
+                pthread_mutex_unlock(pjob->ji_mutex);
                 break;
                 }
               }
@@ -507,6 +508,7 @@ static void req_stat_job_step2(
               {
               if ((pjob = find_job(pa->job_ids[job_array_index])) != NULL)
                 {
+                pthread_mutex_unlock(pjob->ji_mutex);
                 break;
                 }
               }
