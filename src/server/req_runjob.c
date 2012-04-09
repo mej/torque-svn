@@ -124,7 +124,7 @@
 
 /* External Functions Called: */
 
-extern int   send_job_work(job **,char *,int,int *,struct batch_request *);
+extern int   send_job_work(char *job_id,char *,int,int *,struct batch_request *);
 extern void  set_resc_assigned(job *, enum batch_op);
 
 extern struct batch_request *cpy_stage(struct batch_request *, job *, enum job_atr, int);
@@ -740,7 +740,6 @@ int verify_moms_up(
   job *pjob)
 
   {
-  static char        *id = "svr_startjob";
   int                 sock;
   int                 nodenum;
 
@@ -761,7 +760,7 @@ int verify_moms_up(
   if (hostlist == NULL)
     {
     sprintf(log_buf, "could not allocate temporary buffer (calloc failed) -- skipping TCP connect check");
-    log_err(errno, id, log_buf);
+    log_err(errno, __func__, log_buf);
     }
   else
     {
@@ -796,7 +795,7 @@ int verify_moms_up(
       /* Add this host to the reject destination list for the job */
       if ((bp = (badplace *)calloc(1, sizeof(badplace))) == NULL)
         {
-        log_err(ENOMEM, id, msg_err_malloc);
+        log_err(ENOMEM, __func__, msg_err_malloc);
 
         return(PBSE_SYSTEM);
         }
@@ -833,7 +832,7 @@ int verify_moms_up(
         {
         /* FAILURE - cannot allocate memory */
 
-        log_err(errno, id, msg_err_malloc);
+        log_err(errno, __func__, msg_err_malloc);
 
         return(PBSE_RESCUNAV);
         }
@@ -874,7 +873,7 @@ int verify_moms_up(
       if ((bp = (badplace *)calloc(1, sizeof(badplace))) == NULL)
         {
         /* FAILURE - cannot allocate memory */
-        log_err(errno, id, msg_err_malloc);
+        log_err(errno, __func__, msg_err_malloc);
 
         return(PBSE_RESCUNAV);
         }
@@ -1053,6 +1052,8 @@ static int svr_strtjob2(
   struct timezone  tz;
   long             job_timeout = 0;
   long             tcp_timeout = 0;
+  unsigned long    job_momaddr = -1;
+  char             job_id[PBS_MAXSVRJOBID+1];
 
   old_state = pjob->ji_qs.ji_state;
   old_subst = pjob->ji_qs.ji_substate;
@@ -1091,11 +1092,20 @@ static int svr_strtjob2(
     {
     DIS_tcp_settimeout(job_timeout);
     }
+  job_momaddr = pjob->ji_qs.ji_un.ji_exect.ji_momaddr;
+  strcpy(job_id, pjob->ji_qs.ji_jobid);
+  pthread_mutex_unlock(pjob->ji_mutex);
+  *pjob_ptr = NULL;
+  pjob = NULL;
 
-  if (send_job_work(pjob_ptr, NULL, MOVE_TYPE_Exec, &my_err, preq) == PBSE_NONE)
+  if (send_job_work(job_id, NULL, MOVE_TYPE_Exec, &my_err, preq) == PBSE_NONE)
     {
     /* SUCCESS */
     DIS_tcp_settimeout(tcp_timeout);
+    if ((pjob = find_job(job_id)) != NULL)
+      {
+      *pjob_ptr = pjob;
+      }
 
     return(PBSE_NONE);
     }
@@ -1103,12 +1113,11 @@ static int svr_strtjob2(
     {
     DIS_tcp_settimeout(tcp_timeout);
 
-    if (*pjob_ptr != NULL)
+    if ((pjob = find_job(job_id)) != NULL)
       {
-      sprintf(tmpLine, "unable to run job, send to MOM '%lu' failed",
-        pjob->ji_qs.ji_un.ji_exect.ji_momaddr);
-      log_event(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,pjob->ji_qs.ji_jobid,tmpLine);
-      
+      sprintf(tmpLine, "unable to run job, send to MOM '%lu' failed", job_momaddr);
+      log_event(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,job_id,tmpLine);
+      *pjob_ptr = pjob;
       pjob->ji_qs.ji_destin[0] = '\0';
       
       svr_setjobstate(pjob, old_state, old_subst, FALSE);

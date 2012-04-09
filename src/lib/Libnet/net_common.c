@@ -12,6 +12,7 @@
 #include <netdb.h> /* struct addrinfo */
 #include <netinet/in.h> /* Internet domain sockets */
 #include <arpa/inet.h> /* in_addr_t */
+#include <netinet/tcp.h>
 #include <errno.h> /* errno */
 #include <fcntl.h> /* fcntl, F_GETFL */
 #include <sys/time.h> /* gettimeofday */
@@ -62,6 +63,9 @@ int socket_get_tcp()
   int local_socket = 0;
   struct linger l_delay;
   int on = 1;
+  int ka_val = 1;
+  int ka_timeout = 10;
+
   (void) signal(SIGPIPE, SIG_IGN);
   memset(&l_delay, 0, sizeof(struct linger));
   l_delay.l_onoff = 0;
@@ -77,6 +81,14 @@ int socket_get_tcp()
     {
     local_socket = -4;
     }
+  else if (setsockopt(local_socket, SOL_SOCKET, SO_KEEPALIVE, &ka_val, sizeof(int)) < 0)
+    {
+    local_socket = -5;
+    }
+  else if (setsockopt(local_socket, SOL_TCP, TCP_KEEPIDLE, &ka_timeout, sizeof(int)) < 0)
+    {
+    local_socket = -6;
+    }
 /*  else
     {
     socket_read_flush(local_socket);
@@ -90,6 +102,8 @@ int get_listen_socket(struct addrinfo *addr_info)
   int local_socket = 0;
   struct linger l_delay;
   int on = 1;
+  int ka_val = 1;
+  int ka_timeout = 10;
   
   (void) signal(SIGPIPE, SIG_IGN);
   memset(&l_delay, 0, sizeof(struct linger));
@@ -106,6 +120,14 @@ int get_listen_socket(struct addrinfo *addr_info)
   else if (setsockopt(local_socket, SOL_SOCKET, SO_LINGER, &l_delay, sizeof(struct linger)) == -1)
     {
     local_socket = -4;
+    }
+  else if (setsockopt(local_socket, SOL_SOCKET, SO_KEEPALIVE, &ka_val, sizeof(int)) < 0)
+    {
+    local_socket = -5;
+    }
+  else if (setsockopt(local_socket, SOL_TCP, TCP_KEEPIDLE, &ka_timeout, sizeof(int)) < 0)
+    {
+    local_socket = -6;
     }
 
     return(local_socket);
