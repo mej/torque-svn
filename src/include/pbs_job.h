@@ -1066,7 +1066,7 @@ extern char *prefix_std_file(job *, dynamic_string *, int);
 extern char *add_std_filename(job *, char *, int, dynamic_string *);
 extern int   set_jobexid(job *, attribute *, char *);
 extern int   site_check_user_map(job *, char *, char *, int);
-void  svr_dequejob(job *, int);
+int  svr_dequejob(char *, int);
 extern int   svr_enquejob(job *, int, int);
 extern void  svr_evaljobstate(job *, int *, int *, int);
 extern void  svr_mailowner(job *, int, int, char *);

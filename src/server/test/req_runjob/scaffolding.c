@@ -258,7 +258,7 @@ void DIS_tcp_settimeout(long timeout)
   exit(1);
   }
 
-int send_job_work(job *pjob, char *node_name, int type, int *my_err, struct batch_request *preq)
+int send_job_work(char *job_id, char *node_name, int type, int *my_err, struct batch_request *preq)
   {
   fprintf(stderr, "The call to send_job_work to be mocked!!\n");
   exit(1);

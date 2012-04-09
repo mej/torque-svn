@@ -530,19 +530,23 @@ int svr_enquejob(
  * svr_dequejob() - remove job from whatever queue its in and reduce counts
  */
 
-void svr_dequejob(
+int svr_dequejob(
 
-  job *pjob,                    /* I, M */
+  char *job_id,
   int  parent_queue_mutex_held) /* I */
 
   {
   int          bad_ct = 0;
+  job         *pjob = NULL;
   attribute   *pattr;
   pbs_queue   *pque;
   resource    *presc;
   char         log_buf[LOCAL_LOG_BUF_SIZE];
 
   /* remove job from server's all job list and reduce server counts */
+
+  if ((pjob = find_job(job_id)) == NULL)
+    return PBSE_JOBNOTFOUND;
 
   /* the only error is if the job isn't present */
   if (remove_job(&alljobs, pjob) == PBSE_NONE)
@@ -576,7 +580,7 @@ void svr_dequejob(
     if (pjob == NULL)
       {
       log_err(PBSE_JOBNOTFOUND, __func__, "Job lost while acquiring queue");
-      return;
+      return PBSE_JOBNOTFOUND;
       }
     }
   else
@@ -615,7 +619,7 @@ void svr_dequejob(
       unlock_queue(pque, __func__, NULL, LOGLEVEL);
     }
   else if (pjob == NULL)
-    return;
+    return PBSE_JOBNOTFOUND;
 
 #ifndef NDEBUG
 
@@ -623,7 +627,7 @@ void svr_dequejob(
     pque ? pque->qu_qs.qu_name : "unknown queue",
     PJobState[pjob->ji_qs.ji_state]);
 
-  log_event(PBSEVENT_DEBUG2,PBS_EVENTCLASS_JOB,pjob->ji_qs.ji_jobid,log_buf);
+  log_event(PBSEVENT_DEBUG2,PBS_EVENTCLASS_JOB,job_id,log_buf);
 
   if (bad_ct)   /* state counts are all messed up */
     correct_ct();
@@ -635,6 +639,7 @@ void svr_dequejob(
   /* clear any default resource values.  */
 
   pattr = &pjob->ji_wattr[JOB_ATR_resource];
+  pthread_mutex_unlock(pjob->ji_mutex);
 
   if (pattr->at_flags & ATR_VFLAG_SET)
     {
@@ -658,7 +663,7 @@ void svr_dequejob(
   listener_command = SCH_SCHEDULE_TERM;
   pthread_mutex_unlock(listener_command_mutex);
 
-  return;
+  return PBSE_NONE;
   }  /* END svr_dequejob() */
 
 

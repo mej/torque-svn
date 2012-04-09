@@ -1571,7 +1571,9 @@ int job_purge(
   extern char  *msg_err_purgejob;
   time_t        time_now = time(NULL);
   long          record_job_info = FALSE;
+  char          job_id[PBS_MAXSVRJOBID+1];
 
+  strcpy(job_id, pjob->ji_qs.ji_jobid);
   /* check to see if we are keeping a log of all jobs completed */
   get_svr_attr_l(SRV_ATR_RecordJobInfo, &record_job_info);
   if (record_job_info)
@@ -1591,9 +1593,9 @@ int job_purge(
   if ((pjob->ji_qs.ji_substate != JOB_SUBSTATE_TRANSIN) &&
       (pjob->ji_qs.ji_substate != JOB_SUBSTATE_TRANSICM))
     {
-    svr_dequejob(pjob, FALSE);
-
-    if (strlen(pjob->ji_qs.ji_jobid) == 0)
+    pthread_mutex_unlock(pjob->ji_mutex);
+    svr_dequejob(job_id, FALSE);
+    if ((pjob = find_job(job_id)) == NULL)
       return PBSE_UNKJOBID;
     }
 
