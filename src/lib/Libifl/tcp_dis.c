@@ -108,7 +108,7 @@
 #define MAX_SOCKETS 65536
 static struct tcp_chan *tcparray[MAX_SOCKETS] = {NULL};
 
-time_t pbs_tcp_timeout = 20;  /* reduced from 60 to 20 (CRI - Nov/03/2004) */
+time_t pbs_tcp_timeout = 600;  /* reduced from 60 to 20 (CRI - Nov/03/2004) */
 
 
 
