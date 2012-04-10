@@ -361,10 +361,14 @@ int svr_enquejob(
   /* place into queue in order of queue rank starting at end */
   pjob->ji_qhdr = pque;
 
+
   if (!pjob->ji_is_array_template)
     {
     iter = -1;
 
+    /* we have to unlock the job because next_job_from_back may 
+       give us this job */
+    pthread_mutex_unlock(pjob->ji_mutex);
     while ((pjcur = next_job_from_back(pque->qu_jobs,&iter)) != NULL)
       {
       if ((unsigned long)pjob->ji_wattr[JOB_ATR_qrank].at_val.at_long >=
@@ -390,12 +394,14 @@ int svr_enquejob(
     /* update counts: queue and queue by state */
     pque->qu_numjobs++;
     pque->qu_njstate[pjob->ji_qs.ji_state]++;
+    pthread_mutex_lock(pjob->ji_mutex);
     }
   
   if (pjob->ji_is_array_template || pjob->ji_arraystruct == NULL)
     {
     iter = -1;
 
+    pthread_mutex_unlock(pjob->ji_mutex);
     while ((pjcur = next_job_from_back(pque->qu_jobs_array_sum,&iter)) != NULL)
       {
       if ((unsigned long)pjob->ji_wattr[JOB_ATR_qrank].at_val.at_long >=
@@ -417,6 +423,7 @@ int svr_enquejob(
 
       pthread_mutex_unlock(pjcur->ji_mutex);
       }
+    pthread_mutex_lock(pjob->ji_mutex);
     }
 
   /* update the current location and type attribute */
