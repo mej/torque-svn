@@ -304,6 +304,7 @@ int svr_enquejob(
   int            iter;
   char           log_buf[LOCAL_LOG_BUF_SIZE];
   time_t         time_now = time(NULL);
+  char           job_id[PBS_MAXSVRJOBID+1];
 
   /* make sure queue is still there, there exists a small window ... */
   pthread_mutex_unlock(pjob->ji_mutex);
@@ -360,6 +361,7 @@ int svr_enquejob(
 
   /* place into queue in order of queue rank starting at end */
   pjob->ji_qhdr = pque;
+  strcpy(job_id, pjob->ji_qs.ji_jobid);
 
 
   if (!pjob->ji_is_array_template)
@@ -375,7 +377,9 @@ int svr_enquejob(
           (unsigned long)pjcur->ji_wattr[JOB_ATR_qrank].at_val.at_long)
         break;
 
-      pthread_mutex_unlock(pjcur->ji_mutex);
+      pjob = find_job(job_id);
+      if(pjob == NULL)
+        return(PBSE_JOBNOTFOUND);
       }
 
     if (pjcur == NULL)
@@ -408,7 +412,9 @@ int svr_enquejob(
           (unsigned long)pjcur->ji_wattr[JOB_ATR_qrank].at_val.at_long)
         break;
 
-      pthread_mutex_unlock(pjcur->ji_mutex);
+      pjob = find_job(job_id);
+      if(pjob == NULL)
+        return(PBSE_JOBNOTFOUND);
       }
 
     if (pjcur == NULL)
