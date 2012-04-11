@@ -1011,6 +1011,7 @@ static void close_quejob(
 
   {
   job *pjob;
+  int rc = PBSE_NONE;
 
   int iter = -1;
 
@@ -1034,7 +1035,13 @@ static void close_quejob(
           pjob->ji_qs.ji_state = JOB_STATE_QUEUED;
           pjob->ji_qs.ji_substate = JOB_SUBSTATE_QUEUED;
 
-          if (svr_enquejob(pjob, FALSE, -1))
+          rc = svr_enquejob(pjob, FALSE, -1);
+          if (rc == PBSE_JOBNOTFOUND)
+            {
+            pjob = NULL;
+            break;
+            }
+          else if (rc != PBSE_NONE)
             job_abt(&pjob, msg_err_noqueue);
           }
         }
