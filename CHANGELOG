@@ -38,6 +38,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   b - Fix so pbs_mom won't segfault after a qdel is done for a job that is still
       running the prologue. TRQ-832.
   b - Fix for segfault when using routing queues in pbs_server. TRQ-808
+  b - Fix so epilogue.precancel runs only once and only for cancelled jobs. TRQ-831.
 
 4.0.0
   e - make a threadpool for TORQUE server. The number of threads is 
