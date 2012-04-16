@@ -3004,6 +3004,7 @@ int send_hierarchy(
   int                 sock;
   struct sockaddr_in  sa;
   int rc = PBSE_NONE;
+  struct tcp_chan *chan = NULL;
 
   if ((rc = get_addr_info(name, &sa, 3)) != PBSE_NONE)
     return(rc);
@@ -3026,16 +3027,16 @@ int send_hierarchy(
     }
   add_conn(sock, ToServerDIS, ntohl(sa.sin_addr.s_addr), sa.sin_port, PBS_SOCK_INET, NULL);
 
-  DIS_tcp_setup(sock);
-
+  if ((chan = DIS_tcp_setup(sock)) == NULL)
+    {
+    ret = PBSE_MEM_MALLOC;
+    }
   /* write the protocol, version and command */
-  ret = is_compose(sock, IS_CLUSTER_ADDRS);
-
-  if (ret == DIS_SUCCESS)
+  else if ((ret = is_compose(chan, IS_CLUSTER_ADDRS)) == DIS_SUCCESS)
     {
     for (string = hierarchy_holder->str; string != NULL && *string != '\0'; string += strlen(string) + 1)
       {
-      if ((ret = diswst(sock, string)) != DIS_SUCCESS)
+      if ((ret = diswst(chan, string)) != DIS_SUCCESS)
         {
         if (ret > 0)
           {
@@ -3056,12 +3057,14 @@ int send_hierarchy(
         }
       }
 
-    diswst(sock, IS_EOL_MESSAGE);
+    diswst(chan, IS_EOL_MESSAGE);
 
-    DIS_tcp_wflush(sock);
+    DIS_tcp_wflush(chan);
     }
 
   close_conn(sock, FALSE);
+  if (chan != NULL)
+    DIS_tcp_cleanup(chan);
 
   return(ret);
   } /* END send_hierarchy() */

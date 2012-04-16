@@ -117,6 +117,7 @@
 #include "../lib/Libnet/lib_net.h" /* get_connection_entry */
 #include "../lib/Liblog/pbs_log.h" /* print_trace */
 #include "node_func.h" /* addr_ok */
+#include "tcp.h" /* tcp_chan */
 
 
 /* global data */
@@ -337,6 +338,7 @@ void svr_disconnect(
   {
   int sock;
   int x;
+  struct tcp_chan *chan = NULL;
 
   if ((handle >= 0) && (handle < PBS_LOCAL_CONNECTION))
     {
@@ -344,10 +346,11 @@ void svr_disconnect(
     sock = connection[handle].ch_socket;
     pthread_mutex_unlock(connection[handle].ch_mutex);
 
-    DIS_tcp_setup(sock);
-
-    if ((encode_DIS_ReqHdr(sock, PBS_BATCH_Disconnect, pbs_current_user) == 0) &&
-        (DIS_tcp_wflush(sock) == 0))
+    if ((chan = DIS_tcp_setup(sock)) == NULL)
+      {
+      }
+    else if ((encode_DIS_ReqHdr(chan, PBS_BATCH_Disconnect, pbs_current_user) == 0) &&
+        (DIS_tcp_wflush(chan) == 0))
       {
       struct sigaction act;
       struct sigaction oldact;
@@ -382,6 +385,8 @@ void svr_disconnect(
     shutdown(connection[handle].ch_socket, 2);
 
     close_conn(connection[handle].ch_socket, FALSE);
+    if (chan != NULL)
+      DIS_tcp_cleanup(chan);
 
     if (connection[handle].ch_errtxt != NULL)
       {

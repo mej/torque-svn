@@ -2398,13 +2398,13 @@ job *next_job_from_back(
   pthread_mutex_lock(aj->alljobs_mutex);
 
   pjob = (job *)next_thing_from_back(aj->ra,iter);
+  if (pjob != NULL)
+    pthread_mutex_lock(pjob->ji_mutex);
 
   pthread_mutex_unlock(aj->alljobs_mutex);
 
   if (pjob != NULL)
     {
-    pthread_mutex_lock(pjob->ji_mutex);
-
     if (pjob->ji_being_recycled == TRUE)
       {
       pthread_mutex_unlock(pjob->ji_mutex);

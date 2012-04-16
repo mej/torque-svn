@@ -305,7 +305,6 @@ int init_network(
 
   if (initialized == 0)
     {
-    DIS_tcp_init(-1);
     initialize_connections_table();
 
     for (i = 0;i < PBS_NET_MAX_CONNECTIONS;i++)

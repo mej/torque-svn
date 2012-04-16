@@ -237,6 +237,7 @@
 #include "u_tree.h"
 #include "mom_hierarchy.h"
 #include "mom_server.h"
+#include "mom_comm.h"
 #include "mcom.h"
 #include "pbs_constants.h" /* Long */
 #include "mom_server_lib.h"
@@ -302,7 +303,6 @@ dynamic_string            *mom_status = NULL;
 
 extern struct config *rm_search(struct config *where, char *what);
 
-extern int read_status_strings(int,int);
 extern struct rm_attribute *momgetattr(char *str);
 extern char *conf_res(char *resline, struct rm_attribute *attr);
 extern char *dependent(char *res, struct rm_attribute *attr);
@@ -653,16 +653,16 @@ void mom_server_stream_error(
 
 int mom_server_flush_io(
 
-  int         stream,
+  struct tcp_chan *chan,
   const char *id,
   char       *message)
 
   {
-  if (DIS_tcp_wflush(stream) == -1)
+  if (DIS_tcp_wflush(chan) == -1)
     {
     log_err(errno, id, message);
 
-    close(stream);
+    close(chan->sock);
 
     return(DIS_PROTO);
     }
@@ -684,7 +684,7 @@ int mom_server_flush_io(
 
 int is_compose(
 
-  int   stream,
+  struct tcp_chan *chan,
   char *server_name,
   int   command)
 
@@ -692,28 +692,26 @@ int is_compose(
   static char *id = "is_compose";
   int ret;
 
-  if (stream < 0)
+  if (chan->sock < 0)
     {
     return(DIS_EOF);
     }
 
-  DIS_tcp_setup(stream);
-
-  if ((ret = diswsi(stream, IS_PROTOCOL)) != DIS_SUCCESS)
+  if ((ret = diswsi(chan, IS_PROTOCOL)) != DIS_SUCCESS)
     {
-    mom_server_stream_error(stream, server_name, id, "writing protocol");
+    mom_server_stream_error(chan->sock, server_name, id, "writing protocol");
 
     return(ret);
     }
-  else if ((ret = diswsi(stream, IS_PROTOCOL_VER)) != DIS_SUCCESS)
+  else if ((ret = diswsi(chan, IS_PROTOCOL_VER)) != DIS_SUCCESS)
     {
-    mom_server_stream_error(stream, server_name, id, "writing protocol version");
+    mom_server_stream_error(chan->sock, server_name, id, "writing protocol version");
 
     return(ret);
     }
-  else if ((ret = diswsi(stream, command)) != DIS_SUCCESS)
+  else if ((ret = diswsi(chan, command)) != DIS_SUCCESS)
     {
-    mom_server_stream_error(stream, server_name, id, "writing command");
+    mom_server_stream_error(chan->sock, server_name, id, "writing command");
 
     return(ret);
     }
@@ -2813,7 +2811,7 @@ int should_request_cluster_addrs()
  */
 int write_update_header(
     
-  int         stream,
+  struct tcp_chan *chan,
   const char *id,
   char       *name)
 
@@ -2821,21 +2819,21 @@ int write_update_header(
   int  ret;
   char buf[MAXLINE];
   
-  if ((ret = is_compose(stream,name,IS_STATUS)) == DIS_SUCCESS)
+  if ((ret = is_compose(chan,name,IS_STATUS)) == DIS_SUCCESS)
     {
-    if ((ret = diswus(stream, pbs_mom_port)) == DIS_SUCCESS)
+    if ((ret = diswus(chan, pbs_mom_port)) == DIS_SUCCESS)
       {
-      if ((ret = diswus(stream, pbs_rm_port)) == DIS_SUCCESS)
+      if ((ret = diswus(chan, pbs_rm_port)) == DIS_SUCCESS)
         {
         /* write this node's name first */
         snprintf(buf,sizeof(buf),"node=%s",mom_alias);
         
-        if ((ret = diswst(stream,buf)) != DIS_SUCCESS)
-          mom_server_stream_error(stream, name, id, "writing status string");
+        if ((ret = diswst(chan,buf)) != DIS_SUCCESS)
+          mom_server_stream_error(chan->sock, name, id, "writing status string");
         else if (should_request_cluster_addrs() == TRUE)
           {
-          if ((ret = diswst(stream, "first_update=true")) != DIS_SUCCESS)
-            mom_server_stream_error(stream, name, id, "writing status string");
+          if ((ret = diswst(chan, "first_update=true")) != DIS_SUCCESS)
+            mom_server_stream_error(chan->sock, name, id, "writing status string");
           else
             requested_cluster_addrs = time_now;
           }
@@ -2851,7 +2849,7 @@ int write_update_header(
 
 int write_my_server_status(
  
-  int         stream,
+  struct tcp_chan *chan,
   const char *id,
   char       *status_strings,
   void       *dest,
@@ -2876,7 +2874,7 @@ int write_my_server_status(
       log_record(PBSEVENT_SYSTEM,0,id,log_buffer);
       }
     
-    if ((ret = diswst(stream,cp)) != DIS_SUCCESS)
+    if ((ret = diswst(chan,cp)) != DIS_SUCCESS)
       {
       switch (mode)
         {
@@ -2884,14 +2882,14 @@ int write_my_server_status(
           
           pms = (mom_server *)dest;
           
-          mom_server_stream_error(stream, pms->pbs_servername, id, "writing status string");
+          mom_server_stream_error(chan->sock, pms->pbs_servername, id, "writing status string");
           
           break;
           
         case UPDATE_TO_MOM:
           
           nc = (node_comm_t *)dest;
-          nc->stream = stream;
+          nc->stream = chan->sock;
           
           node_comm_error(nc,"Error writing strings to");
           
@@ -2911,7 +2909,7 @@ int write_my_server_status(
 
 int write_cached_statuses(
  
-  int         stream,
+  struct tcp_chan *chan,
   const char *id,
   void       *dest,
   int         mode)
@@ -2941,7 +2939,7 @@ int write_cached_statuses(
         log_record(PBSEVENT_SYSTEM,0,id,log_buffer);
         }
       
-      if ((ret = diswst(stream,cp)) != DIS_SUCCESS)
+      if ((ret = diswst(chan,cp)) != DIS_SUCCESS)
         {
         /* FAILURE */
         switch (mode)
@@ -2950,14 +2948,14 @@ int write_cached_statuses(
             
             pms = (mom_server *)dest;
             
-            mom_server_stream_error(stream, pms->pbs_servername, id, "writing status string");
+            mom_server_stream_error(chan->sock, pms->pbs_servername, id, "writing status string");
             
             break;
             
           case UPDATE_TO_MOM:
             
             nc = (node_comm_t *)dest;
-            nc->stream = stream;
+            nc->stream = chan->sock;
             
             node_comm_error(nc,"Error writing strings to");
             
@@ -3002,6 +3000,7 @@ void mom_server_update_stat(
   {
   int            stream;
   int            ret = -1;
+  struct tcp_chan *chan = NULL;
 
   if ((pms->pbs_servername[0] == 0) ||
       (time_now < (pms->MOMLastSendToServerTime + ServerStatUpdateInterval)))
@@ -3015,27 +3014,30 @@ void mom_server_update_stat(
  
   if (IS_VALID_STREAM(stream))
     {
-    DIS_tcp_setup(stream);
-
-    if ((ret = write_update_header(stream, __func__, pms->pbs_servername)) != DIS_SUCCESS)
+    if ((chan = DIS_tcp_setup(stream)) == NULL)
       {
       }
-    else if ((ret = write_my_server_status(stream, __func__, status_strings, pms, UPDATE_TO_SERVER)) != DIS_SUCCESS)
+    else if ((ret = write_update_header(chan, __func__, pms->pbs_servername)) != DIS_SUCCESS)
       {
       }
-    else if ((ret = write_cached_statuses(stream, __func__, pms, UPDATE_TO_SERVER)) != DIS_SUCCESS)
+    else if ((ret = write_my_server_status(chan, __func__, status_strings, pms, UPDATE_TO_SERVER)) != DIS_SUCCESS)
       {
       }
-    else if ((ret = diswst(stream, IS_EOL_MESSAGE)) != DIS_SUCCESS)
+    else if ((ret = write_cached_statuses(chan, __func__, pms, UPDATE_TO_SERVER)) != DIS_SUCCESS)
       {
       }
-    else if ((ret = DIS_tcp_wflush(stream)) != DIS_SUCCESS)
+    else if ((ret = diswst(chan, IS_EOL_MESSAGE)) != DIS_SUCCESS)
+      {
+      }
+    else if ((ret = DIS_tcp_wflush(chan)) != DIS_SUCCESS)
       {
       }
     else
       {
-      read_tcp_reply(stream, IS_PROTOCOL, IS_PROTOCOL_VER, IS_STATUS, &ret);
+      read_tcp_reply(chan, IS_PROTOCOL, IS_PROTOCOL_VER, IS_STATUS, &ret);
       }
+    if (chan != NULL)
+      DIS_tcp_cleanup(chan);
       
     close(stream);
   
@@ -3132,6 +3134,7 @@ int write_status_strings(
   {
   int            fds = nc->stream;
   int            rc;
+  struct tcp_chan *chan = NULL;
 
   if (LOGLEVEL >= 9)
     {
@@ -3140,25 +3143,26 @@ int write_status_strings(
     log_record(PBSEVENT_SYSTEM, PBS_EVENTCLASS_SERVER, __func__, log_buffer);
     }
  
-  DIS_tcp_setup(fds);
- 
+  if ((chan = DIS_tcp_setup(fds)) == NULL)
+    {
+    }
   /* write protocol */
-  if ((rc = write_update_header(fds,__func__,nc->name)) != DIS_SUCCESS)
+  else if ((rc = write_update_header(chan,__func__,nc->name)) != DIS_SUCCESS)
     {
     }
-  else if ((rc = write_my_server_status(fds,__func__,stat_str,nc,UPDATE_TO_SERVER)) != DIS_SUCCESS)
+  else if ((rc = write_my_server_status(chan,__func__,stat_str,nc,UPDATE_TO_SERVER)) != DIS_SUCCESS)
     {
     }
-  else if ((rc = write_cached_statuses(fds,__func__,nc,UPDATE_TO_SERVER)) != DIS_SUCCESS)
+  else if ((rc = write_cached_statuses(chan,__func__,nc,UPDATE_TO_SERVER)) != DIS_SUCCESS)
     {
     }
   /* write message that we're done */
-  else if ((rc = diswst(fds, IS_EOL_MESSAGE)) != DIS_SUCCESS)
+  else if ((rc = diswst(chan, IS_EOL_MESSAGE)) != DIS_SUCCESS)
     {
     }
-  else if ((rc = DIS_tcp_wflush(fds)) == DIS_SUCCESS)
+  else if ((rc = DIS_tcp_wflush(chan)) == DIS_SUCCESS)
     {
-/*    read_tcp_reply(fds, IS_PROTOCOL, IS_PROTOCOL_VER, IS_STATUS, &rc);
+/*    read_tcp_reply(chan, IS_PROTOCOL, IS_PROTOCOL_VER, IS_STATUS, &rc);
     
     if (rc == DIS_SUCCESS)
       {
@@ -3172,6 +3176,8 @@ int write_status_strings(
 /*      } */
     }
 
+  if (chan != NULL)
+    DIS_tcp_cleanup(chan);
   pbs_disconnect_socket(fds);
   nc->stream = -1;
  
@@ -3395,72 +3401,6 @@ int calculate_retry_seconds(
 
   return(retry_seconds);
   }
-
-
-/**
- * mom_server_send_hello
- *
- * This sends a hello message to server.
- *
- * @param pms pointer to mom_server instance
- * @return count 0 or -1
- *
- */
-
-int mom_server_send_hello(
-
-  mom_server *pms)
-
-  {
-  static char id[] = "mom_server_send_hello";
-  int ret;
-
-  if (LOGLEVEL >= 6)
-    {
-    sprintf(log_buffer, "%s", id);
-
-    log_record(PBSEVENT_JOB, PBS_EVENTCLASS_SERVER, id, log_buffer);
-    }
-
-  if (is_compose(pms->SStream, pms->pbs_servername, IS_HELLO) == -1)
-    {
-    return(-1);
-    }
-
-  ret = diswus(pms->SStream, pbs_mom_port);
-  if (ret)
-    {
-    return(-1);
-    }
-  
-  ret = diswus(pms->SStream, pbs_rm_port);
-  if (ret)
-    {
-    return(-1);
-    }
-
-  if (mom_server_flush_io(pms->SStream, id, "flush") != DIS_SUCCESS)
-    {
-    return(-1);
-    }
-
-  pms->sent_hello_count++;
-
-  if (LOGLEVEL >= 6)
-    {
-    sprintf(log_buffer, "%s done. Sent count = %d",
-            id, pms->sent_hello_count);
-
-    log_record(
-      PBSEVENT_JOB,
-      PBS_EVENTCLASS_SERVER,
-      id,
-      log_buffer);
-    }
-
-  return(0);
-  }  /* END mom_server_send_hello() */
-
 
 
 
@@ -3712,7 +3652,7 @@ AvlTree okclients = NULL;
 
 mom_server *mom_server_valid_message_source(
 
-  int stream,
+  struct tcp_chan *chan,
   char **err_msg)
 
   {
@@ -3727,7 +3667,7 @@ mom_server *mom_server_valid_message_source(
    * message came from.
    */
 
-  if (getpeername(stream,&addr,&len) < 0)
+  if (getpeername(chan->sock,&addr,&len) < 0)
     return(NULL);
  
   ipaddr = ntohl(((struct sockaddr_in *)&addr)->sin_addr.s_addr);  /* Extract IP address of source of the message. */
@@ -3740,7 +3680,7 @@ mom_server *mom_server_valid_message_source(
     {
     /* Now this is the current stream number for this server */
 
-    pms->SStream = stream;
+    pms->SStream = chan->sock;
 
     mom_server_all_update_stat();
 
@@ -3787,7 +3727,7 @@ mom_server *mom_server_valid_message_source(
               {
               okclients = AVL_insert(ipaddr, 0, NULL, okclients);
 
-              pms->SStream = stream;
+              pms->SStream = chan->sock;
               return(pms);
               }
             }
@@ -3825,6 +3765,7 @@ void pass_along_hellos(
   struct sockaddr_in  sa;
   unsigned long       ipaddr;
   int                 stream;
+  struct tcp_chan *chan = NULL;
 
   while ((rn = next_thing(received_statuses,&iter)) != NULL)
     {
@@ -3843,21 +3784,24 @@ void pass_along_hellos(
 
         if (IS_VALID_STREAM(stream))
           {
-          DIS_tcp_setup(stream);
-          
-          if ((ret = diswsi(stream,IS_PROTOCOL)) == DIS_SUCCESS)
+          if ((chan = DIS_tcp_setup(stream)) == NULL)
             {
-            if ((ret = diswsi(stream,IS_PROTOCOL_VER)) == DIS_SUCCESS)
+            }
+          else if ((ret = diswsi(chan,IS_PROTOCOL)) == DIS_SUCCESS)
+            {
+            if ((ret = diswsi(chan,IS_PROTOCOL_VER)) == DIS_SUCCESS)
               {
-              diswsi(stream,IS_HELLO);
+              diswsi(chan,IS_HELLO);
 
-              DIS_tcp_wflush(stream);
+              DIS_tcp_wflush(chan);
               }
             }
           
           /*read_tcp_reply(stream,IS_PROTOCOL,IS_PROTOCOL_VER,IS_HELLO,&ret);*/
           
           close(stream);
+          if (chan != NULL)
+            DIS_tcp_cleanup(chan);
           
           rn->hellos_sent++;
           }
@@ -4026,7 +3970,7 @@ void sort_paths()
 
 int read_cluster_addresses(
 
-  int stream,
+  struct tcp_chan *chan,
   int version)
 
   {
@@ -4048,7 +3992,7 @@ int read_cluster_addresses(
 
   hierarchy_file = get_dynamic_string(-1, "\n");
 
-  while (((str = disrst(stream, &rc)) != NULL) &&
+  while (((str = disrst(chan, &rc)) != NULL) &&
          (rc == DIS_SUCCESS))
     {
     if (!strcmp(str, "<sp>"))
@@ -4102,7 +4046,7 @@ int read_cluster_addresses(
       }
 
     free(str);
-    } /* END reading input from stream */
+    } /* END reading input from chan */
 
   if (rc != DIS_SUCCESS)
     {
@@ -4157,7 +4101,7 @@ int read_cluster_addresses(
 
 void mom_is_request(
 
-  int  stream,   /* I */
+  struct tcp_chan *chan,
   int  version,  /* I */
   int *cmdp)     /* O (optional) */
 
@@ -4181,7 +4125,7 @@ void mom_is_request(
   if (LOGLEVEL >= 7)
     {
     sprintf(log_buffer, "stream %d version %d",
-      stream,
+      chan->sock,
       version);
 
     log_record(PBSEVENT_ERROR, PBS_EVENTCLASS_JOB, __func__, log_buffer);
@@ -4194,17 +4138,17 @@ void mom_is_request(
 
     log_ext(-1,__func__,log_buffer,LOG_ALERT);
 
-    close_conn(stream, FALSE);
-
+    close_conn(chan->sock, FALSE);
+    chan->sock = -1;
     return;
     }
 
   /* check that machine is okay to be a server */
   /* If the stream is the SStream we already opened, then it's fine  */
 
-  if ((pms = mom_server_valid_message_source(stream, &err_msg)) == NULL)
+  if ((pms = mom_server_valid_message_source(chan, &err_msg)) == NULL)
     {
-    getpeername(stream,&s_addr,&len);
+    getpeername(chan->sock,&s_addr,&len);
     addr = (struct sockaddr_in *)&s_addr;
     ipaddr = ntohl(addr->sin_addr.s_addr);
     if (AVL_is_in_tree_no_port_compare(ipaddr,0,okclients) == 0)
@@ -4216,14 +4160,15 @@ void mom_is_request(
         }
       else
         log_ext(-1, __func__, "Invalid source for IS_REQUEST", LOG_ALERT);
-      close_conn(stream, FALSE);
+      close_conn(chan->sock, FALSE);
+      chan->sock = -1;
       return;
       }
 
     getnameinfo(&s_addr,sizeof(s_addr),hostname,sizeof(hostname),NULL,0,0);
     }
 
-  command = disrsi(stream, &ret);
+  command = disrsi(chan, &ret);
 
   if (ret != DIS_SUCCESS)
     command = -1;
@@ -4245,7 +4190,7 @@ void mom_is_request(
         log_buffer);
       }
     
-    mom_server_update_receive_time(stream, PBSServerCmds[command]);
+    mom_server_update_receive_time(chan->sock, PBSServerCmds[command]);
     }
 
   switch (command)
@@ -4282,13 +4227,13 @@ void mom_is_request(
     case IS_CLUSTER_ADDRS:
 
       /* server is sending the mom hierarchy to me */
-      ret = read_cluster_addresses(stream, version);
+      ret = read_cluster_addresses(chan, version);
 
       break;
 
     case IS_STATUS:
 
-      if (read_status_strings(stream,version) < 0)
+      if (read_status_strings(chan,version) < 0)
         ret = -1;
   
       break;
@@ -4317,7 +4262,8 @@ void mom_is_request(
       }
     }
 
-  close_conn(stream, FALSE);
+  close_conn(chan->sock, FALSE);
+  chan->sock = -1;
   }  /* END mom_is_request() */
 
 
@@ -4696,6 +4642,7 @@ void shutdown_to_server(
   mom_server *pms = &mom_servers[ServerIndex];
   int ret;
   char error_buf[1024];
+  struct tcp_chan *chan = NULL;
 
   /* We high jacked this function from state_to_server. We are modifying it 
      so we make our own connection to the server */
@@ -4709,31 +4656,34 @@ void shutdown_to_server(
   if(sock < 0)
     return;
 
-  if (is_compose(sock, pms->pbs_servername, IS_UPDATE) != DIS_SUCCESS)
+  if ((chan = DIS_tcp_setup(sock)) == NULL)
+    goto shutdown_to_server_done;
+
+  if (is_compose(chan, pms->pbs_servername, IS_UPDATE) != DIS_SUCCESS)
     {
     goto shutdown_to_server_done;
     }
 
-  ret = diswus(sock, pbs_mom_port);
+  ret = diswus(chan, pbs_mom_port);
   if (ret)
     {
     goto shutdown_to_server_done;
     }
   
-  ret = diswus(sock, pbs_rm_port);
+  ret = diswus(chan, pbs_rm_port);
   if (ret)
     {
     goto shutdown_to_server_done;
     }
 
-  if (diswui(sock, internal_state) != DIS_SUCCESS)
+  if (diswui(chan, internal_state) != DIS_SUCCESS)
     {
-    mom_server_stream_error(sock, pms->pbs_servername, id, "writing internal state");
+    mom_server_stream_error(chan->sock, pms->pbs_servername, id, "writing internal state");
 
     goto shutdown_to_server_done;
     }
 
-  if (mom_server_flush_io(sock, id, "flush") == DIS_SUCCESS)
+  if (mom_server_flush_io(chan, id, "flush") == DIS_SUCCESS)
     {
     /* send successful, unset ReportMomState */
 
@@ -4754,6 +4704,8 @@ void shutdown_to_server(
     }
 
 shutdown_to_server_done:
+  if (chan != NULL)
+    DIS_tcp_cleanup(chan);
   close(sock);
   return;
   }  /* END shutdown_to_server() */
@@ -4777,6 +4729,7 @@ void state_to_server(
   static char id[] = "state_to_server";
   mom_server *pms = &mom_servers[ServerIndex];
   int ret;
+  struct tcp_chan *chan = NULL;
 
   if ((force == 0) &&
       (pms->ReportMomState == 0))
@@ -4784,31 +4737,38 @@ void state_to_server(
     return;    /* Do nothing, just return */
     }
 
-  if (is_compose(pms->SStream, pms->pbs_servername, IS_UPDATE) != DIS_SUCCESS)
+  if ((chan = DIS_tcp_setup(pms->SStream)) == NULL)
+    return;
+
+  if (is_compose(chan, pms->pbs_servername, IS_UPDATE) != DIS_SUCCESS)
     {
+    DIS_tcp_cleanup(chan);
     return;
     }
 
-  ret = diswus(pms->SStream, pbs_mom_port);
+  ret = diswus(chan, pbs_mom_port);
   if (ret)
     {
+    DIS_tcp_cleanup(chan);
     return;
     }
   
-  ret = diswus(pms->SStream, pbs_rm_port);
+  ret = diswus(chan, pbs_rm_port);
   if (ret)
     {
+    DIS_tcp_cleanup(chan);
     return;
     }
 
-  if (diswui(pms->SStream, internal_state) != DIS_SUCCESS)
+  if (diswui(chan, internal_state) != DIS_SUCCESS)
     {
-    mom_server_stream_error(pms->SStream, pms->pbs_servername, id, "writing internal state");
+    mom_server_stream_error(chan->sock, pms->pbs_servername, id, "writing internal state");
 
+    DIS_tcp_cleanup(chan);
     return;
     }
 
-  if (mom_server_flush_io(pms->SStream, id, "flush") == DIS_SUCCESS)
+  if (mom_server_flush_io(chan, id, "flush") == DIS_SUCCESS)
     {
     /* send successful, unset ReportMomState */
 
@@ -4828,6 +4788,7 @@ void state_to_server(
       }
     }
 
+  DIS_tcp_cleanup(chan);
   return;
   }  /* END state_to_server() */
 

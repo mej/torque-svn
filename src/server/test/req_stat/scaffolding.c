@@ -76,12 +76,6 @@ int reply_send_svr(struct batch_request *request)
   exit(1);
   }
 
-void *process_Dreply(void *new_sock)
-  {
-  fprintf(stderr, "The call to process_Dreply to be mocked!!\n");
-  exit(1);
-  }
-
 void log_record(int eventtype, int objclass, const char *objname, char *text)
   {
   fprintf(stderr, "The call to log_record to be mocked!!\n");

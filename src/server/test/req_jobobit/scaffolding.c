@@ -122,12 +122,6 @@ void release_req(struct work_task *pwt)
   exit(1);
   }
 
-void *process_Dreply(void *new_sock)
-  {
-  fprintf(stderr, "The call to process_Dreply to be mocked!!\n");
-  exit(1);
-  }
-
 void free_nodes(node_info **ninfo_arr)
   {
   fprintf(stderr, "The call to free_nodes to be mocked!!\n");

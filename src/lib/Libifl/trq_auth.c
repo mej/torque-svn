@@ -111,14 +111,17 @@ int parse_response_svr(
   int rc = PBSE_NONE;
   struct batch_reply *reply = NULL;
   char *tmp_val = NULL;
-  DIS_tcp_setup(sock);
-  if ((reply = (struct batch_reply *)calloc(1, sizeof(struct batch_reply))) == NULL)
+  struct tcp_chan *chan = NULL;
+  if ((chan = DIS_tcp_setup(sock)) == NULL)
     {
     }
-  else if ((rc = decode_DIS_replyCmd(sock, reply)))
+  else if ((reply = (struct batch_reply *)calloc(1, sizeof(struct batch_reply))) == NULL)
+    {
+    }
+  else if ((rc = decode_DIS_replyCmd(chan, reply)))
     {
     free(reply);
-    if (DIS_tcp_istimeout(sock) == TRUE)
+    if (chan->IsTimeout == TRUE)
       {
       rc = PBSE_TIMEOUT;
       }
@@ -144,7 +147,7 @@ int parse_response_svr(
       }
     free(reply);
     }
-  DIS_tcp_shutdown(sock);
+  DIS_tcp_cleanup(chan);
   return rc;
   }
 

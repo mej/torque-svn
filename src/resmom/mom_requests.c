@@ -624,6 +624,7 @@ static int return_file(
   struct batch_request *prq;
   int                   rc = 0;
   int                   seq = 0;
+  struct tcp_chan *chan = NULL;
 
   filename = std_file_name(pjob, which, &amt); /* amt is place holder */
 
@@ -666,25 +667,30 @@ static int return_file(
     /* prq->rq_ind.rq_jobfile.rq_size = amt; */
     /* prq->rq_ind.rq_jobfile.rq_data = buf; */
 
-    DIS_tcp_setup(sock);
-
-    if ((rc = encode_DIS_ReqHdr(sock, PBS_BATCH_MvJobFile, pbs_current_user)) ||
-        (rc = encode_DIS_JobFile(sock, seq++, buf, amt, pjob->ji_qs.ji_jobid, which)) ||
-        (rc = encode_DIS_ReqExtend(sock, NULL)))
+    if ((chan = DIS_tcp_setup(sock)) == NULL)
+      {
+      break;
+      }
+    else if ((rc = encode_DIS_ReqHdr(chan, PBS_BATCH_MvJobFile, pbs_current_user)) ||
+        (rc = encode_DIS_JobFile(chan, seq++, buf, amt, pjob->ji_qs.ji_jobid, which)) ||
+        (rc = encode_DIS_ReqExtend(chan, NULL)))
       {
       break;
       }
 
-    DIS_tcp_wflush(sock);
+    DIS_tcp_wflush(chan);
 
-    if ((DIS_reply_read(sock, &prq->rq_reply) != 0) ||
+    if ((DIS_reply_read(chan, &prq->rq_reply) != 0) ||
         (prq->rq_reply.brp_code != 0))
       {
       rc = -1;
 
       break;
       }
+    DIS_tcp_cleanup(chan);
     }    /* END while ((amt = read()) */
+  if (chan != NULL)
+    DIS_tcp_cleanup(chan);
 
   free_br(prq);
 
@@ -1923,13 +1929,11 @@ int sigalltasks_sisters(
   int  signum)
 
   {
-#ifndef NDEBUG
-  char      id[] = "sigalltasks_sisters";
-#endif
   char     *cookie;
   eventent *ep;
   int       i;
   int       stream;
+  struct tcp_chan *chan = NULL;
 
   cookie = pjob->ji_wattr[JOB_ATR_Cookie].at_val.at_str;
 
@@ -1941,32 +1945,35 @@ int sigalltasks_sisters(
     if (np->hn_node == pjob->ji_nodeid) /* this is me */
       continue;
 
-    DBPRT(("%s: sending sig%d to all tasks on sister %s\n", id, signum, np->hn_host));
+    DBPRT(("%s: sending sig%d to all tasks on sister %s\n", __func__, signum, np->hn_host));
 
     ep = event_alloc(IM_SIGNAL_TASK, np, TM_NULL_EVENT, TM_NULL_TASK);
 
     if ((stream = tcp_connect_sockaddr((struct sockaddr *)&np->sock_addr,sizeof(np->sock_addr))) < 0)
         return(-1);
 
-    DIS_tcp_setup(stream);
-
-    ret = im_compose(stream, pjob->ji_qs.ji_jobid, cookie, IM_SIGNAL_TASK, ep->ee_event, TM_NULL_TASK);
-
-    if (ret == DIS_SUCCESS)
+    if ((chan = DIS_tcp_setup(stream)) == NULL)
       {
-      if ((ret = diswui(stream, pjob->ji_nodeid)) == DIS_SUCCESS)
+      }
+    else if ((ret = im_compose(chan, pjob->ji_qs.ji_jobid, cookie, IM_SIGNAL_TASK, ep->ee_event, TM_NULL_TASK))
+        == DIS_SUCCESS)
+      {
+      if ((ret = diswui(chan, pjob->ji_nodeid)) == DIS_SUCCESS)
         {
-        if ((ret = diswsi(stream, TM_NULL_TASK)) == DIS_SUCCESS)
+        if ((ret = diswsi(chan, TM_NULL_TASK)) == DIS_SUCCESS)
           {
-          if ((ret = diswsi(stream, signum)) == DIS_SUCCESS)
+          if ((ret = diswsi(chan, signum)) == DIS_SUCCESS)
             {
-            ret = DIS_tcp_wflush(stream);
+            ret = DIS_tcp_wflush(chan);
 
             /* NYI: add code to read reply from sister */
             }
           }
         }
       }
+
+    if (chan != NULL)
+      DIS_tcp_cleanup(chan);
 
     close(stream);
 

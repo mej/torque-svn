@@ -843,6 +843,13 @@ int handle_returnstd(
   strcpy(job_fileprefix, pjob->ji_qs.ji_fileprefix);
   job_momaddr = pjob->ji_qs.ji_un.ji_exect.ji_momaddr;
   job_momport = pjob->ji_qs.ji_un.ji_exect.ji_momport;
+  if (pjob->ji_wattr[JOB_ATR_exec_host].at_val.at_str == NULL)
+    {
+    pthread_mutex_unlock(pjob->ji_mutex);
+    rc = PBSE_JOB_FILE_CORRUPT;
+    goto handle_returnstd_cleanup;
+    }
+    
   job_momname = strdup(pjob->ji_wattr[JOB_ATR_exec_host].at_val.at_str);
   if (job_momname == NULL)
     {

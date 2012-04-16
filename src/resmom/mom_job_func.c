@@ -134,6 +134,7 @@
 #include "net_connect.h"
 #include "portability.h"
 #include "threadpool.h"
+#include "dis.h"
 
 
 #ifndef TRUE
@@ -222,7 +223,12 @@ void tasks_free(
       ip = (infoent *)GET_NEXT(tp->ti_info);
       }
 
-    close_conn(tp->ti_fd, FALSE);
+    if (tp->ti_chan != NULL)
+      {
+      close_conn(tp->ti_chan->sock, FALSE);
+      DIS_tcp_cleanup(tp->ti_chan);
+      tp->ti_chan = NULL;
+      }
 
     delete_link(&tp->ti_jobtask);
 

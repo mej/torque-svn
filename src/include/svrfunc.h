@@ -12,7 +12,6 @@ extern int   chk_hold_priv(long hold, int priv);
 extern void  get_jobowner(char *from, char *to); 
 extern char *parse_servername(char *, unsigned int *);
 extern void  process_Areply(int);
-extern void  *process_Dreply(void *);
 extern void  *mom_process_request(void *);
 extern void  process_dis_request(int);
 extern int   save_struct(char *, unsigned int, int, char *, size_t *, size_t);

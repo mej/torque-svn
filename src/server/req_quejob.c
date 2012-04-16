@@ -2064,7 +2064,7 @@ int req_commit(
 
   pj->ji_wattr[JOB_ATR_qrank].at_flags |= ATR_VFLAG_SET;
 
-  if ((rc = svr_enquejob(pj, FALSE, -1)))
+  if ((rc = svr_enquejob(pj, FALSE, -1)) != PBSE_NONE)
     {
     snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "can not queue job %s",
         pj->ji_qs.ji_jobid);

@@ -257,7 +257,6 @@ pjobexec_t      TMOMStartInfo[TMAX_JE];
 /* prototypes */
 
 void            resend_things();
-void            im_request(int, int);
 extern void     add_resc_def(char *, char *);
 extern void     mom_server_all_diag(char **BPtr, int *BSpace);
 extern void     mom_server_all_init(void);
@@ -4330,7 +4329,7 @@ static void mom_lock(
 
 int rm_request(
 
-  int iochan,
+  struct tcp_chan *chan,
   int version)
 
   {
@@ -4363,8 +4362,8 @@ int rm_request(
   errno = 0;
   log_buffer[0] = '\0';
 
-  ipadd = svr_conn[iochan].cn_addr;
-  port = svr_conn[iochan].cn_port;
+  ipadd = svr_conn[chan->sock].cn_addr;
+  port = svr_conn[chan->sock].cn_port;
 
   if (version != RM_PROTOCOL_VER)
     {
@@ -4391,10 +4390,10 @@ int rm_request(
     }
 
   /* looks okay, find out how many queries and what command it is */
-  num_queries = disrsi(iochan, &ret);
+  num_queries = disrsi(chan, &ret);
 
   if (ret == DIS_SUCCESS)
-    command = disrsi(iochan, &ret);
+    command = disrsi(chan, &ret);
 
   if (ret != DIS_SUCCESS)
     {
@@ -4418,7 +4417,7 @@ int rm_request(
       /* query resource data */
       reqnum++;
 
-      ret = diswsi(iochan, RM_RSP_OK);
+      ret = diswsi(chan, RM_RSP_OK);
 
       if (ret != DIS_SUCCESS)
         {
@@ -4430,7 +4429,7 @@ int rm_request(
 
       for (query_index = 0; query_index < num_queries; query_index++)
         {
-        cp = disrst(iochan, &ret);
+        cp = disrst(chan, &ret);
 
         if (ret == DIS_EOD)
           {
@@ -5136,7 +5135,7 @@ int rm_request(
 
         free(cp);
 
-        ret = diswst(iochan, output);
+        ret = diswst(chan, output);
 
 
         if (ret != DIS_SUCCESS)
@@ -5147,7 +5146,7 @@ int rm_request(
           goto bad;
           }
 
-        if (DIS_tcp_wflush(iochan) == -1)
+        if (DIS_tcp_wflush(chan) == -1)
           {
           log_err(errno, id, "flush");
 
@@ -5180,7 +5179,7 @@ int rm_request(
 
       log_record(PBSEVENT_SYSTEM, 0, id, "configure");
 
-      body = disrst(iochan, &ret);
+      body = disrst(chan, &ret);
 
       /* FORMAT:  FILE:<FILENAME> or <FILEDATA> (NYI) */
 
@@ -5235,7 +5234,7 @@ int rm_request(
 
       len = read_config(body);
 
-      ret = diswsi(iochan, len ? RM_RSP_ERROR : RM_RSP_OK);
+      ret = diswsi(chan, len ? RM_RSP_ERROR : RM_RSP_OK);
 
       if (ret != DIS_SUCCESS)
         {
@@ -5245,7 +5244,7 @@ int rm_request(
         goto bad;
         }
 
-      if (DIS_tcp_wflush(iochan) == -1)
+      if (DIS_tcp_wflush(chan) == -1)
         {
         log_err(errno, id, "flush");
 
@@ -5267,7 +5266,7 @@ int rm_request(
 
       log_record(PBSEVENT_SYSTEM, 0, id, "shutdown");
 
-      ret = diswsi(iochan, RM_RSP_OK);
+      ret = diswsi(chan, RM_RSP_OK);
 
       if (ret != DIS_SUCCESS)
         {
@@ -5277,9 +5276,10 @@ int rm_request(
         log_err(-1, id, log_buffer);
         }
 
-      DIS_tcp_wflush(iochan);
+      DIS_tcp_wflush(chan);
 
-      close_conn(iochan, FALSE);
+      close_conn(chan->sock, FALSE);
+      DIS_tcp_cleanup(chan);
 
       mom_lock(lockfds, F_UNLCK);
       close(lockfds);
@@ -5314,7 +5314,7 @@ int rm_request(
 
       log_err(-1, id, log_buffer);
 
-      ret = diswsi(iochan, RM_RSP_ERROR);
+      ret = diswsi(chan, RM_RSP_ERROR);
 
       if (ret != DIS_SUCCESS)
         {
@@ -5324,7 +5324,7 @@ int rm_request(
         goto bad;
         }
 
-      ret = diswst(iochan, log_buffer);
+      ret = diswst(chan, log_buffer);
 
       if (ret != DIS_SUCCESS)
         {
@@ -5366,25 +5366,26 @@ bad:
 
 
 int do_tcp(
-
-  int fd)
-
+    int socket)
   {
-#ifndef NDEBUG
-  static char id[] = "do_tcp";
-#endif
-
   int rc = PBSE_NONE;
   int proto, version;
-  int tm_request(int stream, int version);
-
+  struct tcp_chan *chan = NULL;
   time_t tmpT;
+
+  if ((chan = DIS_tcp_setup(socket)) == NULL)
+    {
+    sprintf(log_buffer, "Can not allocate memory for socket buffer");
+    log_err(errno, __func__, log_buffer);
+    return PBSE_MEM_MALLOC;
+    }
+
 
   tmpT = pbs_tcp_timeout;
 
   pbs_tcp_timeout = 0;
 
-  proto = disrsi(fd, &rc);
+  proto = disrsi(chan, &rc);
 
   if (tmpT > 0)
     {
@@ -5407,6 +5408,7 @@ int do_tcp(
 
     case DIS_EOF:   /* closed */
     case DIS_EOD:   /* still open */
+      DIS_tcp_cleanup(chan);
       return rc;
       /*NOTREACHED*/
       break;
@@ -5416,22 +5418,20 @@ int do_tcp(
       sprintf(log_buffer, "no protocol number: %s",
               dis_emsg[rc]);
 
-      goto bad;
+      goto do_tcp_cleanup;
 
       /*NOTREACHED*/
 
       break;
     }  /* END switch (rc) */
 
-  version = disrsi(fd, &rc);
+  version = disrsi(chan, &rc);
 
   if (rc != DIS_SUCCESS)
     {
-    DBPRT(("%s: no protocol version number %s\n",
-      id,
-      dis_emsg[rc]))
+    DBPRT(("%s: no protocol version number %s\n", __func__, dis_emsg[rc]))
 
-    goto bad;
+    goto do_tcp_cleanup;
     }
 
   switch (proto)
@@ -5441,14 +5441,13 @@ int do_tcp(
       {
       time_t tmpT;
 
-      DBPRT(("%s: got a resource monitor request\n",
-        id))
+      DBPRT(("%s: got a resource monitor request\n", __func__))
 
       tmpT = pbs_tcp_timeout;
 
       pbs_tcp_timeout = 0;
 
-      rc = rm_request(fd, version);
+      rc = rm_request(chan, version);
 
       if (tmpT > 0)
         {
@@ -5468,22 +5467,21 @@ int do_tcp(
 
     case TM_PROTOCOL:
 
-      DBPRT(("%s: got an internal task manager request\n",
-        id))
+      DBPRT(("%s: got an internal task manager request\n", __func__))
 
-      rc = tm_request(fd, version);
+      rc = tm_request(chan, version);
 
       break;
 
     case IS_PROTOCOL:
 
-      mom_is_request(fd,version,NULL);
+      mom_is_request(chan,version,NULL);
 
       break;
 
     case IM_PROTOCOL:
 
-      im_request(fd,version);
+      im_request(chan,version);
 
       break;
 
@@ -5494,31 +5492,30 @@ int do_tcp(
       struct sockaddr     s_addr;
       unsigned int        len = sizeof(s_addr);
       
-      if (getpeername(fd, &s_addr, &len) == 0)
+      if (getpeername(chan->sock, &s_addr, &len) == 0)
         {
         addr = (struct sockaddr_in *)&s_addr;
         DBPRT(("%s: unknown request %d from %s",
-          id, proto, netaddr(addr)))
+          __func__, proto, netaddr(addr)))
         }
       else
         {
-        DBPRT(("%s: unknown request %d\n",
-          id,
-          proto))
+        DBPRT(("%s: unknown request %d\n", __func__, proto))
         }
       }
 
-      goto bad;
+      goto do_tcp_cleanup;
 
       /*NOTREACHED*/
 
 
       break;
     }  /* END switch (proto) */
-
+  DIS_tcp_cleanup(chan);
   return rc;
 
-bad:
+do_tcp_cleanup:
+  DIS_tcp_cleanup(chan);
   return DIS_INVALID;
   }  /* END do_tcp() */
 
@@ -5531,7 +5528,6 @@ void *tcp_request(
   void *new_sock)
 
   {
-  static char id[] = "tcp_request";
   int  c;
   long  ipadd;
   char  address[80];
@@ -5539,38 +5535,30 @@ void *tcp_request(
   int rc = PBSE_NONE;
 
   extern struct connection svr_conn[];
-  int fd = *(int *)new_sock;
+  int socket = *(int *)new_sock;
 
-  ipadd = svr_conn[fd].cn_addr;
+  ipadd = svr_conn[socket].cn_addr;
 
   tmp = netaddr_pbs_net_t(ipadd);
 
   sprintf(address, "%s:%d",
           tmp,
-          svr_conn[fd].cn_port);
+          svr_conn[socket].cn_port);
 
   free(tmp);
 
   if (LOGLEVEL >= 6)
     {
-    sprintf(log_buffer, "%s: fd %d addr %s",
-            id,
-            fd,
-            address);
+    sprintf(log_buffer, "%s: fd %d addr %s", __func__, socket, address);
 
     log_record(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,"tcp_request",log_buffer);
     }
 
-  DIS_tcp_setup(fd);
-
   if (AVL_is_in_tree_no_port_compare(ipadd, 0, okclients) == 0)
     {
     sprintf(log_buffer, "bad connect from %s", address);
-
-    log_err(errno, id, log_buffer);
-
-    close_conn(fd, FALSE);
-
+    log_err(errno, __func__, log_buffer);
+    close_conn(socket, FALSE);
     return NULL;
     }
 
@@ -5578,22 +5566,23 @@ void *tcp_request(
 
   for (c = 0;;c++)
     {
-    rc = do_tcp(fd);
+    rc = do_tcp(socket);
     switch (rc)
       {
       case PBSE_NONE:
         continue;
         break;
 
+      case PBSE_MEM_MALLOC:
       case DIS_EOF:
       case DIS_EOD:
       case DIS_INVALID:
-        close_conn(fd, FALSE);
+        close_conn(socket, FALSE);
         break;
 
       default:
-        close_conn(fd, FALSE);
-        DBPRT(("Error in connection. Closing %d\n", fd))
+        close_conn(socket, FALSE);
+        DBPRT(("Error in connection. Closing %d\n", socket))
         break;
       }
 
@@ -5601,7 +5590,7 @@ void *tcp_request(
     }  /* END for (c = 0) */
 
   DBPRT(("%s: processed %d\n",
-         id,
+         __func__,
          c))
 
   return NULL;
@@ -8702,11 +8691,11 @@ im_compose_info *create_compose_reply_info(
 
 int im_compose_send_info(
 
-  int              stream,
+  struct tcp_chan *chan,
   im_compose_info *ici)
 
   {
-  return(im_compose(stream, ici->jobid, ici->cookie, ici->command, ici->event, ici->taskid));
+  return(im_compose(chan, ici->jobid, ici->cookie, ici->command, ici->event, ici->taskid));
   } /* END im_compose_send_info() */
 
 
@@ -8722,17 +8711,19 @@ int resend_compose_reply(
   hnodent *np;
   int      stream;
   char     log_buf[LOCAL_LOG_BUF_SIZE];
+  struct tcp_chan *chan = NULL;
 
   np = &ici->np;
   stream = tcp_connect_sockaddr((struct sockaddr *)&np->sock_addr, sizeof(np->sock_addr));
   
   if (IS_VALID_STREAM(stream))
     {
-    ret = im_compose_send_info(stream, ici);
-    
-    if (ret == DIS_SUCCESS)
+    if ((chan = DIS_tcp_setup(stream)) == NULL)
       {
-      if ((ret = DIS_tcp_wflush(stream)) == DIS_SUCCESS)
+      }
+    else if ((ret = im_compose_send_info(chan, ici)) == DIS_SUCCESS)
+      {
+      if ((ret = DIS_tcp_wflush(chan)) == DIS_SUCCESS)
         {
         sprintf(log_buf, "re-sent im_compose reply to %s", netaddr(&np->sock_addr));
         log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, ici->jobid, log_buf);
@@ -8741,6 +8732,8 @@ int resend_compose_reply(
       }
     
     close(stream);
+    if (chan != NULL)
+      DIS_tcp_cleanup(chan);
     }
 
   return(ret);
@@ -8757,28 +8750,30 @@ int resend_kill_job_reply(
   int      stream;
   int      ret = -1;
   hnodent *np;
+  struct tcp_chan *chan = NULL;
         
   np = &kj->ici->np;
   stream = tcp_connect_sockaddr((struct sockaddr *)&np->sock_addr, sizeof(np->sock_addr));
   
   if (IS_VALID_STREAM(stream))
     {
-    ret = im_compose_send_info(stream, kj->ici);
-    
-    if (ret == DIS_SUCCESS)
+    if ((chan = DIS_tcp_setup(stream)) == NULL)
       {
-      if ((ret = diswul(stream, kj->cputime)) == DIS_SUCCESS)
+      }
+    else if ((ret = im_compose_send_info(chan, kj->ici)) == DIS_SUCCESS)
+      {
+      if ((ret = diswul(chan, kj->cputime)) == DIS_SUCCESS)
         {
-        if ((ret = diswul(stream, kj->mem)) == DIS_SUCCESS)
+        if ((ret = diswul(chan, kj->mem)) == DIS_SUCCESS)
           {
-          if ((ret = diswul(stream, kj->vmem)) == DIS_SUCCESS)
+          if ((ret = diswul(chan, kj->vmem)) == DIS_SUCCESS)
             {
             if (kj->node_id >= 0)
-              ret = diswsi(stream, kj->node_id);
+              ret = diswsi(chan, kj->node_id);
             
             if (ret == DIS_SUCCESS)
               {
-              if ((ret = DIS_tcp_wflush(stream)) == DIS_SUCCESS)
+              if ((ret = DIS_tcp_wflush(chan)) == DIS_SUCCESS)
                 {
                 log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, kj->ici->jobid, "Successfully re-sent kill job reply");
                 free(kj->ici);
@@ -8791,6 +8786,8 @@ int resend_kill_job_reply(
       }
 
     close(stream);
+    if (chan != NULL)
+      DIS_tcp_cleanup(chan);
     }
 
   return(ret);
@@ -8807,19 +8804,21 @@ int resend_spawn_task_reply(
   {
   int      ret = -1;
   hnodent *np = &st->ici->np;
+  struct tcp_chan *chan = NULL;
   int      stream = tcp_connect_sockaddr((struct sockaddr *)&np->sock_addr, sizeof(np->sock_addr));
 
   if (IS_VALID_STREAM(stream))
     {
-    ret = im_compose_send_info(stream, st->ici);
-
-    if (ret == DIS_SUCCESS)
+    if ((chan = DIS_tcp_setup(stream)) == NULL)
       {
-      if ((ret = diswsi(stream, st->ti_task)) == DIS_SUCCESS)
+      }
+    else if ((ret = im_compose_send_info(chan, st->ici)) == DIS_SUCCESS)
+      {
+      if ((ret = diswsi(chan, st->ti_task)) == DIS_SUCCESS)
         {
-        if ((ret = DIS_tcp_wflush(stream)) == DIS_SUCCESS)
+        if ((ret = DIS_tcp_wflush(chan)) == DIS_SUCCESS)
           {
-/*          read_tcp_reply(stream, IM_PROTOCOL, IM_PROTOCOL_VER, st->ici->command, &ret);
+/*          read_tcp_reply(chan, IM_PROTOCOL, IM_PROTOCOL_VER, st->ici->command, &ret);
  *          */
 
           if (ret == DIS_SUCCESS)
@@ -8833,6 +8832,8 @@ int resend_spawn_task_reply(
       }
 
     close(stream);
+    if (chan != NULL)
+      DIS_tcp_cleanup(chan);
     }
 
   return(ret);
@@ -8848,19 +8849,21 @@ int resend_obit_task_reply(
   {
   int      ret = -1;
   hnodent *np = &ot->ici->np;
+  struct tcp_chan *chan = NULL;
   int      stream = tcp_connect_sockaddr((struct sockaddr *)&np->sock_addr, sizeof(np->sock_addr));
 
   if (IS_VALID_STREAM(stream))
     {
-    ret = im_compose_send_info(stream, ot->ici);
-
-    if (ret == DIS_SUCCESS)
+    if ((chan = DIS_tcp_setup(stream)) == NULL)
       {
-      if ((ret = diswsi(stream, ot->ti_exitstat)) == DIS_SUCCESS)
+      }
+    else if ((ret = im_compose_send_info(chan, ot->ici)) == DIS_SUCCESS)
+      {
+      if ((ret = diswsi(chan, ot->ti_exitstat)) == DIS_SUCCESS)
         {
-        if ((ret = DIS_tcp_wflush(stream)) == DIS_SUCCESS)
+        if ((ret = DIS_tcp_wflush(chan)) == DIS_SUCCESS)
           {
-/*          read_tcp_reply(stream, IM_PROTOCOL, IM_PROTOCOL_VER, IM_OBIT_TASK, &ret); */
+/*          read_tcp_reply(chan, IM_PROTOCOL, IM_PROTOCOL_VER, IM_OBIT_TASK, &ret); */
 
           if (ret == DIS_SUCCESS)
             {
@@ -8873,6 +8876,8 @@ int resend_obit_task_reply(
       }
 
     close(stream);
+    if (chan != NULL)
+      DIS_tcp_cleanup(chan);
     }
   
   return(ret);
