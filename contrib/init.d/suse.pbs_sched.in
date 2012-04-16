@@ -18,8 +18,8 @@
 #	available etc.  It then makes decisions as to which jobs to run.
 ### END INIT INFO
 
-PBS_DAEMON=/usr/sbin/pbs_sched
-PBS_HOME=/var/spool/torque
+PBS_DAEMON=@sbindir@/pbs_sched
+PBS_HOME=@PBS_HOME@
 export PBS_DAEMON
 
 # Source the library functions

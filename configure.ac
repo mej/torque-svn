@@ -2074,6 +2074,7 @@ AC_OUTPUT(buildutils/pbs_mkdirs
 	  buildutils/modulefiles.vers
 	  Makefile
 	  contrib/blcr/Makefile
+	  contrib/init.d/Makefile
 	  doc/Makefile
 	  doc/man1/Makefile
 	  doc/man3/Makefile

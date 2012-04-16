@@ -10,8 +10,8 @@
 
 
 # NOTE: customize these two variables as needed
-PBS_DAEMON=/usr/local/sbin/trqauthd
-PBS_HOME=/var/spool/torque
+PBS_DAEMON=@sbindir@/trqauthd
+PBS_HOME=@PBS_HOME@
 
 if [ -f /etc/sysconfig/trqauthd ]; then
   . /etc/sysconfig/trqauthd

@@ -1,8 +1,8 @@
-#! /bin/sh
+#!/bin/sh
 ### BEGIN INIT INFO
-# Provides:          pbs_sched
+# Provides:          pbs_mom
 # Required-Start:    $local_fs
-# Should-Start:      pbs_server
+# Should-Start:      pbs_server pbs_sched
 # Required-Stop:
 # Should-Stop:
 # Default-Start:     2 3 5
@@ -10,17 +10,20 @@
 # Description:       Torque is a versatile batch system for SMPs and clusters
 ### END INIT INFO
 
-# TO INSTALL DO (as root):
-#    cp debian.pbs_sched /etc/init.d/pbs_sched && update-rc.d pbs_sched defaults
+# To install do (as root):
+#    cp debian.pbs_mom /etc/init.d/pbs_mom && update-rc.d pbs_mom defaults
 
-DESC="TORQUE scheduler"
-NAME=pbs_sched
-DAEMON=/usr/local/sbin/$NAME
+
+DESC="TORQUE mom"
+NAME=pbs_mom
+DAEMON=@sbindir@/$NAME
 PBS_DAEMON=$DAEMON
-PBS_HOME=/var/spool/torque
-PIDFILE=$PBS_HOME/sched_priv/sched.lock
+PBS_HOME=@PBS_HOME@
+PIDFILE=$PBS_HOME/mom_priv/mom.lock
 SCRIPTNAME=/etc/init.d/$NAME
-export PBS_DAEMON PIDFILE
+export PBS_DAEMON PBS_HOME PIDFILE
+
+ulimit -n 32768
 
 # Exit if the package is not installed
 [ -x "$DAEMON" ] || exit 0
@@ -54,13 +57,16 @@ do_stop()
    #   1 if daemon was already stopped
    #   2 if daemon could not be stopped
    #   other if a failure occurred
+
    start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE --name $NAME
    RETVAL="$?"
    [ "$RETVAL" = 2 ] && return 2
+   sleep 1
    start-stop-daemon --stop --quiet --oknodo --retry=0/30/KILL/5 --exec $DAEMON
    [ "$?" = 2 ] && return 2
    rm -f $PIDFILE
    return "$RETVAL"
+
 }
 
 do_reload() {
@@ -93,7 +99,6 @@ case "$1" in
   restart)
      log_daemon_msg "Restarting $DESC" "$NAME"
      do_stop
-     sleep 1
      case "$?" in
        0|1)
         do_start
@@ -114,5 +119,4 @@ case "$1" in
      exit 3
    ;;
 esac
-
 :

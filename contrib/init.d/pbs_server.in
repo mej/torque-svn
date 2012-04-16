@@ -66,10 +66,10 @@ reload() {
 }
 
 # customize these to match your settings
-SBIN_PATH=/usr/local/sbin
-BIN_PATH=/usr/local/bin
+SBIN_PATH=@sbindir@
+BIN_PATH=@bindir@
 PBS_DAEMON=$SBIN_PATH/pbs_server
-PBS_HOME=/var/spool/torque
+PBS_HOME=@PBS_HOME@
 PBS_ARGS=""
 PBS_SERVERDB="$PBS_HOME/server_priv/serverdb"
 
