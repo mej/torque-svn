@@ -99,6 +99,7 @@
 #include "hash_table.h"
 #include "mom_hierarchy.h"
 #include "dynamic_string.h"
+#include "tcp.h" /* tcp_chan */
 
 #define SAVEJOB_BUF_SIZE 8192
 
@@ -724,7 +725,7 @@ typedef struct task
   {
   job  *ti_job; /* pointer to owning job */
   list_link ti_jobtask; /* links to tasks for this job */
-  int  ti_fd;  /* DIS file descriptor to task */
+  struct tcp_chan *ti_chan;  /* DIS file descriptor to task */
   int  ti_flags; /* task internal flags */
   tm_event_t ti_register; /* event if task registers - never used*/
   tlist_head ti_obits; /* list of obit events */

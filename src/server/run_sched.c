@@ -219,8 +219,6 @@ static int contact_sched(
     return(-1);
     }
     
-  DIS_tcp_setup(sock);
-
   sprintf(log_buf, msg_sched_called, (cmd != SCH_ERROR) ? PSchedCmdType[cmd] : "ERROR");
 
   log_event(PBSEVENT_SCHED,PBS_EVENTCLASS_SERVER,server_name,log_buf);
@@ -290,7 +288,11 @@ int schedule_jobs(void)
 void *start_process_request(void *vp)
   {
   int sock = *(int *)vp;
-  process_request(sock);
+  struct tcp_chan *chan = NULL;
+  if ((chan = DIS_tcp_setup(sock)) == NULL)
+    return NULL;
+  process_request(chan);
+  DIS_tcp_cleanup(chan);
   return(NULL);
   }
 

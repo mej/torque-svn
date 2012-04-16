@@ -141,6 +141,7 @@
 #include "req_select.h" /* req_selectjobs */
 #include "req_register.h" /* req_register, req_registerarray */
 #include "job_func.h" /* job_purge */
+#include "tcp.h" /* tcp_chan */
 
 
 /*
@@ -308,7 +309,7 @@ int get_creds(
 
 int process_request(
 
-  int sfds) /* file descriptor (socket) to get request */
+  struct tcp_chan *chan) /* file descriptor (socket) to get request */
 
   {
   int                   rc = PBSE_NONE;
@@ -325,6 +326,7 @@ int process_request(
   unsigned short        conn_socktype;
   unsigned short        conn_authen;
   unsigned long         conn_addr;
+  int sfds = chan->sock;
 
   pthread_mutex_lock(svr_conn[sfds].cn_mutex);
   conn_active = svr_conn[sfds].cn_active;
@@ -338,7 +340,7 @@ int process_request(
     snprintf(tmpLine, sizeof(tmpLine),
         "cannot allocate memory for request from %lu",
         conn_addr);
-    req_reject(PBSE_BADHOST, 0, request, NULL, tmpLine);
+    req_reject(PBSE_MEM_MALLOC, 0, request, NULL, tmpLine);
     free_request = FALSE;
     rc = PBSE_SYSTEM;
     goto process_request_cleanup;
@@ -362,7 +364,7 @@ int process_request(
       }
 
 #endif /* END ENABLE_UNIX_SOCKETS */
-    rc = dis_request_read(sfds, request);
+    rc = dis_request_read(chan, request);
     }
   else
     {
@@ -647,6 +649,7 @@ int process_request(
    */
 
   rc = dispatch_request(sfds, request);
+
 
   return(rc);
 

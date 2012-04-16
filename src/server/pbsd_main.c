@@ -135,6 +135,7 @@
 #include "../lib/Libnet/lib_net.h" /* start_listener_addrinfo */
 #include "process_request.h" /* process_request */
 #include "net_connect.h" /* set_localhost_name */
+#include "tcp.h" /* tcp_chan */
 
 #define TASK_CHECK_INTERVAL    10
 #define RETRY_ROUTING_INTERVAL 45
@@ -385,22 +386,25 @@ int process_pbs_server_port(
   int          rc = PBSE_NONE;
   int          version;
   char         log_buf[LOCAL_LOG_BUF_SIZE];
+  struct tcp_chan *chan = NULL;
   
-  DIS_tcp_setup(sock);
-  
-  proto_type = disrui_peek(sock,&rc);
+  if ((chan = DIS_tcp_setup(sock)) == NULL)
+    {
+    }
+
+  proto_type = disrui_peek(chan,&rc);
   
   switch(proto_type)
     {
     case PBS_BATCH_PROT_TYPE:
       
-      rc = process_request(sock);
+      rc = process_request(chan);
       
       break;
       
     case IS_PROTOCOL:
 
-      version = disrsi(sock,&rc);
+      version = disrsi(chan,&rc);
       
       if (rc != DIS_SUCCESS)
         {
@@ -409,7 +413,7 @@ int process_pbs_server_port(
         break;
         }
       
-      rc = svr_is_request(sock,version);
+      rc = svr_is_request(chan,version);
       
       break;
 
@@ -439,6 +443,8 @@ int process_pbs_server_port(
       break;
       }
     }
+  if (chan != NULL)
+    DIS_tcp_cleanup(chan);
 
   return rc;
   }  /* END process_pbs_server_port() */

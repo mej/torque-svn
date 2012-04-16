@@ -546,11 +546,8 @@ static int localmom(void)
       }
     }    /* END for (i) */
 
-  if (local_conn >= 0)
-    DIS_tcp_setup(local_conn);
-
   return(local_conn);
-  }  /* END local_mom() */
+  }  /* END localmom() */
 
 
 
@@ -564,59 +561,67 @@ static int localmom(void)
 static int startcom(
 
   int        com,
-  tm_event_t event)
+  tm_event_t event,
+  struct tcp_chan **pchan)
 
   {
   int     ret;
+  struct tcp_chan *chan = NULL;
 
   if (localmom() == -1)
     {
     return(-1);
     }
 
-  ret = diswsi(local_conn, TM_PROTOCOL);
+  if ((chan = DIS_tcp_setup(local_conn)) == NULL)
+    goto done;
+
+  ret = diswsi(chan, TM_PROTOCOL);
 
   if (ret != DIS_SUCCESS)
     goto done;
 
-  ret = diswsi(local_conn, TM_PROTOCOL_VER);
+  ret = diswsi(chan, TM_PROTOCOL_VER);
 
   if (ret != DIS_SUCCESS)
     goto done;
 
-  ret = diswcs(local_conn, tm_jobid, tm_jobid_len);
+  ret = diswcs(chan, tm_jobid, tm_jobid_len);
 
   if (ret != DIS_SUCCESS)
     goto done;
 
-  ret = diswcs(local_conn, tm_jobcookie, tm_jobcookie_len);
+  ret = diswcs(chan, tm_jobcookie, tm_jobcookie_len);
 
   if (ret != DIS_SUCCESS)
     goto done;
 
-  ret = diswsi(local_conn, com);
+  ret = diswsi(chan, com);
 
   if (ret != DIS_SUCCESS)
     goto done;
 
-  ret = diswsi(local_conn, event);
+  ret = diswsi(chan, event);
 
   if (ret != DIS_SUCCESS)
     goto done;
 
-  ret = diswui(local_conn, tm_jobtid);
+  ret = diswui(chan, tm_jobtid);
 
   if (ret != DIS_SUCCESS)
     goto done;
 
+  *pchan = chan;
   return(DIS_SUCCESS);
 
 done:
 
   DBPRT(("startcom: send error %s\n",
          dis_emsg[ret]))
-
-  close(local_conn);
+  if (chan != NULL)
+    DIS_tcp_close(chan);
+  else
+    close(local_conn);
 
   local_conn = -1;
 
@@ -640,6 +645,7 @@ int tm_init(
   char   *env, *hold;
   int   err;
   int   nerr = 0;
+  struct tcp_chan *chan = NULL;
 
   if (init_done)
     {
@@ -689,10 +695,11 @@ int tm_init(
    * int  task number
    */
 
-  if (startcom(TM_INIT, nevent) != DIS_SUCCESS)
+  if (startcom(TM_INIT, nevent, &chan) != DIS_SUCCESS)
     return TM_ESYSTEM;
 
-  DIS_tcp_wflush(local_conn);
+  DIS_tcp_wflush(chan);
+  DIS_tcp_cleanup(chan);
 
   add_event(nevent, TM_ERROR_NODE, TM_INIT, (void *)roots);
 
@@ -768,8 +775,10 @@ int tm_spawn(
   tm_event_t  *event) /* out */
 
   {
+  int rc = TM_SUCCESS;
   char *cp;
   int   i;
+  struct tcp_chan *chan = NULL;
 
   /* NOTE: init_done is global */
 
@@ -785,19 +794,21 @@ int tm_spawn(
 
   *event = new_event();
 
-  if (startcom(TM_SPAWN, *event) != DIS_SUCCESS)
+  if (startcom(TM_SPAWN, *event, &chan) != DIS_SUCCESS)
     {
     return(TM_ENOTCONNECTED);
     }
 
-  if (diswsi(local_conn, where) != DIS_SUCCESS) /* send where */
+  if (diswsi(chan, where) != DIS_SUCCESS) /* send where */
     {
-    return(TM_ENOTCONNECTED);
+    rc = TM_ENOTCONNECTED;
+    goto tm_spawn_cleanup;
     }
 
-  if (diswsi(local_conn, argc) != DIS_SUCCESS) /* send argc */
+  if (diswsi(chan, argc) != DIS_SUCCESS) /* send argc */
     {
-    return(TM_ENOTCONNECTED);
+     rc = TM_ENOTCONNECTED;
+     goto tm_spawn_cleanup;
     }
 
   /* send argv strings across */
@@ -806,9 +817,10 @@ int tm_spawn(
     {
     cp = argv[i];
 
-    if (diswcs(local_conn, cp, strlen(cp)) != DIS_SUCCESS)
+    if (diswcs(chan, cp, strlen(cp)) != DIS_SUCCESS)
       {
-      return(TM_ENOTCONNECTED);
+       rc = TM_ENOTCONNECTED;
+       goto tm_spawn_cleanup;
       }
     }
 
@@ -816,9 +828,10 @@ int tm_spawn(
 
   if (getenv("PBSDEBUG") != NULL)
     {
-    if (diswcs(local_conn, "PBSDEBUG=1", strlen("PBSDEBUG=1")) != DIS_SUCCESS)
+    if (diswcs(chan, "PBSDEBUG=1", strlen("PBSDEBUG=1")) != DIS_SUCCESS)
       {
-      return(TM_ENOTCONNECTED);
+       rc = TM_ENOTCONNECTED;
+       goto tm_spawn_cleanup;
       }
     }
 
@@ -826,23 +839,29 @@ int tm_spawn(
     {
     for (i = 0;(cp = envp[i]) != NULL;i++)
       {
-      if (diswcs(local_conn, cp, strlen(cp)) != DIS_SUCCESS)
+      if (diswcs(chan, cp, strlen(cp)) != DIS_SUCCESS)
         {
-        return(TM_ENOTCONNECTED);
+         rc = TM_ENOTCONNECTED;
+         goto tm_spawn_cleanup;
         }
       }
     }
 
-  if (diswcs(local_conn, "", 0) != DIS_SUCCESS)
+  if (diswcs(chan, "", 0) != DIS_SUCCESS)
     {
-    return(TM_ENOTCONNECTED);
+     rc = TM_ENOTCONNECTED;
+     goto tm_spawn_cleanup;
     }
 
-  DIS_tcp_wflush(local_conn);
+  DIS_tcp_wflush(chan);
 
   add_event(*event, where, TM_SPAWN, (void *)tid);
 
-  return(TM_SUCCESS);
+tm_spawn_cleanup:
+  if (chan != NULL)
+    DIS_tcp_cleanup(chan);
+  return rc;
+
   }  /* END tm_spawn() */
 
 
@@ -859,33 +878,56 @@ int tm_kill(
   tm_event_t *event)  /* out */
 
   {
+  int rc = TM_SUCCESS;
   task_info *tp;
+  struct tcp_chan *chan = NULL;
 
   if (!init_done)
-    return TM_BADINIT;
+    {
+    rc = TM_BADINIT;
+    goto tm_kill_cleanup;
+    }
 
   if ((tp = find_task(tid)) == NULL)
-    return TM_ENOTFOUND;
+    {
+    rc = TM_ENOTFOUND;
+    goto tm_kill_cleanup;
+    }
 
   *event = new_event();
 
-  if (startcom(TM_SIGNAL, *event) != DIS_SUCCESS)
-    return TM_ENOTCONNECTED;
+  if (startcom(TM_SIGNAL, *event, &chan) != DIS_SUCCESS)
+    {
+    rc = TM_ENOTCONNECTED;
+    goto tm_kill_cleanup;
+    }
 
-  if (diswsi(local_conn, tp->t_node) != DIS_SUCCESS)
-    return TM_ENOTCONNECTED;
+  if (diswsi(chan, tp->t_node) != DIS_SUCCESS)
+    {
+    rc = TM_ENOTCONNECTED;
+    goto tm_kill_cleanup;
+    }
 
-  if (diswsi(local_conn, tid) != DIS_SUCCESS)
-    return TM_ENOTCONNECTED;
+  if (diswsi(chan, tid) != DIS_SUCCESS)
+    {
+    rc = TM_ENOTCONNECTED;
+    goto tm_kill_cleanup;
+    }
 
-  if (diswsi(local_conn, sig) != DIS_SUCCESS)
-    return TM_ENOTCONNECTED;
+  if (diswsi(chan, sig) != DIS_SUCCESS)
+    {
+    rc = TM_ENOTCONNECTED;
+    goto tm_kill_cleanup;
+    }
 
-  DIS_tcp_wflush(local_conn);
+  DIS_tcp_wflush(chan);
 
   add_event(*event, tp->t_node, TM_SIGNAL, NULL);
 
-  return TM_SUCCESS;
+tm_kill_cleanup:
+  if (chan != NULL)
+    DIS_tcp_cleanup(chan);
+  return rc;
   }
 
 /*
@@ -898,30 +940,50 @@ int tm_obit(
   int        *obitval, /* out */
   tm_event_t *event)  /* out */
   {
+  int rc = TM_SUCCESS;
   task_info *tp;
+  struct tcp_chan *chan = NULL;
 
   if (!init_done)
-    return TM_BADINIT;
+    {
+    rc = TM_BADINIT;
+    goto tm_obit_cleanup;
+    }
 
   if ((tp = find_task(tid)) == NULL)
-    return TM_ENOTFOUND;
+    {
+    rc = TM_ENOTFOUND;
+    goto tm_obit_cleanup;
+    }
 
   *event = new_event();
 
-  if (startcom(TM_OBIT, *event) != DIS_SUCCESS)
-    return TM_ESYSTEM;
+  if (startcom(TM_OBIT, *event, &chan) != DIS_SUCCESS)
+    {
+    rc = TM_ESYSTEM;
+    goto tm_obit_cleanup;
+    }
 
-  if (diswsi(local_conn, tp->t_node) != DIS_SUCCESS)
-    return TM_ESYSTEM;
+  if (diswsi(chan, tp->t_node) != DIS_SUCCESS)
+    {
+    rc = TM_ESYSTEM;
+    goto tm_obit_cleanup;
+    }
 
-  if (diswsi(local_conn, tid) != DIS_SUCCESS)
-    return TM_ESYSTEM;
+  if (diswsi(chan, tid) != DIS_SUCCESS)
+    {
+    rc = TM_ESYSTEM;
+    goto tm_obit_cleanup;
+    }
 
-  DIS_tcp_wflush(local_conn);
+  DIS_tcp_wflush(chan);
 
   add_event(*event, tp->t_node, TM_OBIT, (void *)obitval);
 
-  return TM_SUCCESS;
+tm_obit_cleanup:
+  if (chan != NULL)
+    DIS_tcp_cleanup(chan);
+  return rc;
   }
 
 struct taskhold
@@ -945,8 +1007,8 @@ tm_taskinfo(
   tm_event_t *event  /* out */
 )
   {
-
   struct taskhold *thold;
+  struct tcp_chan *chan = NULL;
 
   if (!init_done)
     return TM_BADINIT;
@@ -956,13 +1018,17 @@ tm_taskinfo(
 
   *event = new_event();
 
-  if (startcom(TM_TASKS, *event) != DIS_SUCCESS)
+  if (startcom(TM_TASKS, *event, &chan) != DIS_SUCCESS)
     return TM_ESYSTEM;
 
-  if (diswsi(local_conn, node) != DIS_SUCCESS)
+  if (diswsi(chan, node) != DIS_SUCCESS)
+    {
+    DIS_tcp_cleanup(chan);
     return TM_ESYSTEM;
+    }
 
-  DIS_tcp_wflush(local_conn);
+  DIS_tcp_wflush(chan);
+  DIS_tcp_cleanup(chan);
 
   thold = (struct taskhold *)calloc(1, sizeof(struct taskhold));
 
@@ -1022,6 +1088,7 @@ int tm_rescinfo(
   {
 
   struct reschold *rhold;
+  struct tcp_chan *chan = NULL;
 
   if (!init_done)
     return TM_BADINIT;
@@ -1031,13 +1098,17 @@ int tm_rescinfo(
 
   *event = new_event();
 
-  if (startcom(TM_RESOURCES, *event) != DIS_SUCCESS)
+  if (startcom(TM_RESOURCES, *event, &chan) != DIS_SUCCESS)
     return TM_ESYSTEM;
 
-  if (diswsi(local_conn, node) != DIS_SUCCESS)
+  if (diswsi(chan, node) != DIS_SUCCESS)
+    {
+    DIS_tcp_cleanup(chan);
     return TM_ESYSTEM;
+    }
 
-  DIS_tcp_wflush(local_conn);
+  DIS_tcp_wflush(chan);
+  DIS_tcp_cleanup(chan);
 
   rhold = (struct reschold *)calloc(1, sizeof(struct reschold));
 
@@ -1066,26 +1137,38 @@ tm_publish(
   tm_event_t *event  /* out */
 )
   {
+  int rc = TM_SUCCESS;
+  struct tcp_chan *chan = NULL;
 
   if (!init_done)
     return TM_BADINIT;
 
   *event = new_event();
 
-  if (startcom(TM_POSTINFO, *event) != DIS_SUCCESS)
+  if (startcom(TM_POSTINFO, *event, &chan) != DIS_SUCCESS)
     return TM_ESYSTEM;
 
-  if (diswst(local_conn, name) != DIS_SUCCESS)
-    return TM_ESYSTEM;
+  if (diswst(chan, name) != DIS_SUCCESS)
+    {
+    rc = TM_ESYSTEM;
+    goto tm_publish_cleanup;
+    }
 
-  if (diswcs(local_conn, info, len) != DIS_SUCCESS)
-    return TM_ESYSTEM;
+  if (diswcs(chan, info, len) != DIS_SUCCESS)
+    {
+    rc = TM_ESYSTEM;
+    goto tm_publish_cleanup;
+    }
 
-  DIS_tcp_wflush(local_conn);
+  DIS_tcp_wflush(chan);
 
   add_event(*event, TM_ERROR_NODE, TM_POSTINFO, NULL);
 
-  return TM_SUCCESS;
+tm_publish_cleanup:
+  if (chan != NULL)
+    DIS_tcp_cleanup(chan);
+
+  return rc;
   }
 
 struct infohold
@@ -1110,31 +1193,51 @@ tm_subscribe(
   tm_event_t *event  /* out */
 )
   {
+  int rc = TM_SUCCESS;
   task_info  *tp;
+  struct tcp_chan *chan = NULL;
 
   struct infohold *ihold;
 
   if (!init_done)
-    return TM_BADINIT;
+    {
+    rc = TM_BADINIT;
+    goto tm_subscribe_cleanup;
+    }
 
   if ((tp = find_task(tid)) == NULL)
-    return TM_ENOTFOUND;
+    {
+    rc = TM_ENOTFOUND;
+    goto tm_subscribe_cleanup;
+    }
 
   *event = new_event();
 
-  if (startcom(TM_GETINFO, *event) != DIS_SUCCESS)
-    return TM_ESYSTEM;
+  if (startcom(TM_GETINFO, *event, &chan) != DIS_SUCCESS)
+    {
+    rc = TM_ESYSTEM;
+    goto tm_subscribe_cleanup;
+    }
 
-  if (diswsi(local_conn, tp->t_node) != DIS_SUCCESS)
-    return TM_ESYSTEM;
+  if (diswsi(chan, tp->t_node) != DIS_SUCCESS)
+    {
+    rc = TM_ESYSTEM;
+    goto tm_subscribe_cleanup;
+    }
 
-  if (diswsi(local_conn, tid) != DIS_SUCCESS)
-    return TM_ESYSTEM;
+  if (diswsi(chan, tid) != DIS_SUCCESS)
+    {
+    rc = TM_ESYSTEM;
+    goto tm_subscribe_cleanup;
+    }
 
-  if (diswst(local_conn, name) != DIS_SUCCESS)
-    return TM_ESYSTEM;
+  if (diswst(chan, name) != DIS_SUCCESS)
+    {
+    rc = TM_ESYSTEM;
+    goto tm_subscribe_cleanup;
+    }
 
-  DIS_tcp_wflush(local_conn);
+  DIS_tcp_wflush(chan);
 
   ihold = (struct infohold *)calloc(1, sizeof(struct infohold));
 
@@ -1148,7 +1251,11 @@ tm_subscribe(
 
   add_event(*event, tp->t_node, TM_GETINFO, (void *)ihold);
 
-  return TM_SUCCESS;
+tm_subscribe_cleanup:
+  if (chan != NULL)
+    DIS_tcp_cleanup(chan);
+
+  return rc;
   }
 
 /*
@@ -1299,6 +1406,7 @@ int tm_poll(
 
   struct reschold *rhold;
   extern time_t pbs_tcp_timeout;
+  struct tcp_chan *chan = NULL;
 
   if (!init_done)
     {
@@ -1338,7 +1446,13 @@ int tm_poll(
   */
   pbs_tcp_timeout = wait ? FOREVER : 0;
 
-  prot = disrsi(local_conn, &ret);
+  if ((chan = DIS_tcp_setup(local_conn)) == NULL)
+    {
+    DBPRT(("%s: Error allocating memory for sock buffer %d", __func__, PBSE_MEM_MALLOC))
+    goto err;
+    }
+
+  prot = disrsi(chan, &ret);
 
   if (ret == DIS_EOD)
     {
@@ -1363,7 +1477,7 @@ int tm_poll(
   */
   pbs_tcp_timeout = FOREVER;
 
-  protver = disrsi(local_conn, &ret);
+  protver = disrsi(chan, &ret);
 
   if (ret != DIS_SUCCESS)
     {
@@ -1377,7 +1491,7 @@ int tm_poll(
     goto err;
     }
 
-  mtype = disrsi(local_conn, &ret);
+  mtype = disrsi(chan, &ret);
 
   if (ret != DIS_SUCCESS)
     {
@@ -1385,7 +1499,7 @@ int tm_poll(
     goto err;
     }
 
-  nevent = disrsi(local_conn, &ret);
+  nevent = disrsi(chan, &ret);
 
   if (ret != DIS_SUCCESS)
     {
@@ -1400,14 +1514,14 @@ int tm_poll(
   if ((ep = find_event(nevent)) == NULL)
     {
     DBPRT(("%s: No event found for number %d\n", id, nevent));
-    (void)close(local_conn);
+    DIS_tcp_close(chan);
     local_conn = -1;
     return TM_ENOEVENT;
     }
 
   if (mtype == TM_ERROR)   /* problem, read error num */
     {
-    *tm_errno = disrsi(local_conn, &ret);
+    *tm_errno = disrsi(chan, &ret);
     DBPRT(("%s: event %d error %d\n", id, nevent, *tm_errno));
     goto done;
     }
@@ -1430,7 +1544,7 @@ int tm_poll(
       */
 
     case TM_INIT:
-      nnodes = disrsi(local_conn, &ret);
+      nnodes = disrsi(chan, &ret);
 
       if (ret != DIS_SUCCESS)
         {
@@ -1452,7 +1566,7 @@ int tm_poll(
 
       for (i = 0; i < nnodes; i++)
         {
-        node_table[i] = disrsi(local_conn, &ret);
+        node_table[i] = disrsi(chan, &ret);
 
         if (ret != DIS_SUCCESS)
           {
@@ -1463,7 +1577,7 @@ int tm_poll(
 
       node_table[nnodes] = TM_ERROR_NODE;
 
-      jobid = disrst(local_conn, &ret);
+      jobid = disrst(chan, &ret);
 
       if (ret != DIS_SUCCESS)
         {
@@ -1473,7 +1587,7 @@ int tm_poll(
 
       DBPRT(("%s: INIT daddy jobid %s\n", id, jobid))
 
-      node = disrsi(local_conn, &ret);
+      node = disrsi(chan, &ret);
 
       if (ret != DIS_SUCCESS)
         {
@@ -1483,7 +1597,7 @@ int tm_poll(
 
       DBPRT(("%s: INIT daddy node %d\n", id, node))
 
-      tid = disrsi(local_conn, &ret);
+      tid = disrsi(chan, &ret);
 
       if (ret != DIS_SUCCESS)
         {
@@ -1512,7 +1626,7 @@ int tm_poll(
 
       for (i = 0;; i++)
         {
-        tid = disrsi(local_conn, &ret);
+        tid = disrsi(chan, &ret);
 
         if (tid == TM_NULL_TASK)
           break;
@@ -1535,7 +1649,7 @@ int tm_poll(
       break;
 
     case TM_SPAWN:
-      tid = disrsi(local_conn, &ret);
+      tid = disrsi(chan, &ret);
 
       if (ret != DIS_SUCCESS)
         {
@@ -1553,7 +1667,7 @@ int tm_poll(
 
     case TM_OBIT:
       obitvalp = (int *)ep->e_info;
-      *obitvalp = disrsi(local_conn, &ret);
+      *obitvalp = disrsi(chan, &ret);
 
       if (ret != DIS_SUCCESS)
         {
@@ -1568,7 +1682,7 @@ int tm_poll(
 
     case TM_GETINFO:
       ihold = (struct infohold *)ep->e_info;
-      info = disrcs(local_conn, (size_t *)ihold->info_len, &ret);
+      info = disrcs(chan, (size_t *)ihold->info_len, &ret);
 
       if (ret != DIS_SUCCESS)
         {
@@ -1583,7 +1697,7 @@ int tm_poll(
 
     case TM_RESOURCES:
       rhold = (struct reschold *)ep->e_info;
-      info = disrst(local_conn, &ret);
+      info = disrst(chan, &ret);
 
       if (ret != DIS_SUCCESS)
         break;
@@ -1599,6 +1713,7 @@ int tm_poll(
       goto err;
     }
 
+  DIS_tcp_wflush(chan);
 done:
 
   del_event(ep);
@@ -1609,7 +1724,10 @@ err:
   if (ep)
     del_event(ep);
 
-  (void)close(local_conn);
+  if (chan != NULL)
+    DIS_tcp_close(chan);
+  else
+    close(local_conn);
 
   local_conn = -1;
 
@@ -1680,9 +1798,11 @@ err:
 
 int tm_adopt(char *id, int adoptCmd, pid_t pid)
   {
+  int rc = TM_SUCCESS;
   int status, ret;
   pid_t sid;
   char *env;
+  struct tcp_chan *chan = NULL;
 
   sid = getsid(pid);
 
@@ -1719,31 +1839,43 @@ int tm_adopt(char *id, int adoptCmd, pid_t pid)
   if (adoptCmd != TM_ADOPT_ALTID && adoptCmd != TM_ADOPT_JOBID)
     return TM_EUNKNOWNCMD;
 
-  if (startcom(adoptCmd, TM_NULL_EVENT) != DIS_SUCCESS)
+  if (startcom(adoptCmd, TM_NULL_EVENT, &chan) != DIS_SUCCESS)
     return TM_ESYSTEM;
 
   /* send session id */
-  if (diswsi(local_conn, sid) != DIS_SUCCESS)
-    return TM_ENOTCONNECTED;
+  if (diswsi(chan, sid) != DIS_SUCCESS)
+    {
+    rc = TM_ENOTCONNECTED;
+    goto tm_adopt_cleanup;
+    }
 
   /* write the pid so the adopted process can be part of the cpuset if needed */
 
-  if (diswsi(local_conn,sid) != DIS_SUCCESS)
-    return TM_ENOTCONNECTED;
+  if (diswsi(chan,sid) != DIS_SUCCESS)
+    {
+    rc =  TM_ENOTCONNECTED;
+    goto tm_adopt_cleanup;
+    }
 
   /* send job or alternative id */
-  if (diswcs(local_conn, id, strlen(id)) != DIS_SUCCESS)
-    return TM_ENOTCONNECTED;
+  if (diswcs(chan, id, strlen(id)) != DIS_SUCCESS)
+    {
+    rc =  TM_ENOTCONNECTED;
+    goto tm_adopt_cleanup;
+    }
 
-  DIS_tcp_wflush(local_conn);
+  DIS_tcp_wflush(chan);
 
   /* The mom should now attempt to adopt the task and will send back a
      status flag to indicate whether it was successful or not. */
 
-  status = disrsi(local_conn, &ret);
+  status = disrsi(chan, &ret);
 
   if (ret != DIS_SUCCESS)
-    return TM_ENOTCONNECTED;
+    {
+    rc = TM_ENOTCONNECTED;
+    goto tm_adopt_cleanup;
+    }
 
   /* Don't allow any more tm_* calls in this process. As well as
      closing an unused socket it also prevents any problems related to
@@ -1759,8 +1891,14 @@ int tm_adopt(char *id, int adoptCmd, pid_t pid)
     local_conn = -1;
     }
 
+  DIS_tcp_cleanup(chan);
   return (status == TM_OKAY ?
 
           TM_SUCCESS :
           TM_ENOTFOUND);
+
+tm_adopt_cleanup:
+  if (chan != NULL)
+    DIS_tcp_cleanup(chan);
+  return rc;
   }

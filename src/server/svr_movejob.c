@@ -368,7 +368,7 @@ static int local_move(
       lock_queue(routing_que, __func__, NULL, 0);
     }
 
-  if (*my_err != 0)
+  if (*my_err != PBSE_NONE)
     {
     return(-1); /* should never ever get here */
     }

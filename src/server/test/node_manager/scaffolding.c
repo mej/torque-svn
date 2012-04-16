@@ -77,12 +77,6 @@ AvlTree AVL_delete_node(u_long key, uint16_t port, AvlTree tree)
   exit(1);
   }
 
-void *process_Dreply(void *new_sock)
-  {
-  fprintf(stderr, "The call to process_Dreply needs to be mocked!!\n");
-  exit(1);
-  }
-
 void log_record(int eventtype, int objclass, const char *objname, char *text)
   {
   fprintf(stderr, "The call to log_record needs to be mocked!!\n");

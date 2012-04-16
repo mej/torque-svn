@@ -97,10 +97,11 @@
 #include "list_link.h"
 #include "dis.h"
 #include "batch_request.h"
+#include "tcp.h" /* tcp_chan */
 
 int decode_DIS_replySvr(
 
-  int                 sock,   /* I */
+  struct tcp_chan *chan,
   struct batch_reply *reply)  /* I (modified) */
 
   {
@@ -116,13 +117,13 @@ int decode_DIS_replySvr(
 
   /* first decode "header" consisting of protocol type and version */
 
-  i = disrui(sock, &rc);
+  i = disrui(chan, &rc);
 
   if (rc != 0) return rc;
 
   if (i != PBS_BATCH_PROT_TYPE) return DIS_PROTO;
 
-  i = disrui(sock, &rc);
+  i = disrui(chan, &rc);
 
   if (rc != 0) return rc;
 
@@ -130,15 +131,15 @@ int decode_DIS_replySvr(
 
   /* next decode code, auxcode and choice (union type identifier) */
 
-  reply->brp_code    = disrsi(sock, &rc);
+  reply->brp_code    = disrsi(chan, &rc);
 
   if (rc) return rc;
 
-  reply->brp_auxcode = disrsi(sock, &rc);
+  reply->brp_auxcode = disrsi(chan, &rc);
 
   if (rc) return rc;
 
-  reply->brp_choice  = disrui(sock, &rc);
+  reply->brp_choice  = disrui(chan, &rc);
 
   if (rc) return rc;
 
@@ -155,7 +156,7 @@ int decode_DIS_replySvr(
 
     case BATCH_REPLY_CHOICE_Commit:
 
-      if ((rc = disrfst(sock, PBS_MAXSVRJOBID + 1, reply->brp_un.brp_jid)))
+      if ((rc = disrfst(chan, PBS_MAXSVRJOBID + 1, reply->brp_un.brp_jid)))
         return (rc);
 
       break;
@@ -168,7 +169,7 @@ int decode_DIS_replySvr(
 
       pselx = &reply->brp_un.brp_select;
 
-      ct = disrui(sock, &rc);
+      ct = disrui(chan, &rc);
 
       if (rc) return rc;
 
@@ -182,7 +183,7 @@ int decode_DIS_replySvr(
 
         psel->brp_jobid[0] = '\0';
 
-        rc = disrfst(sock, PBS_MAXSVRJOBID + 1, psel->brp_jobid);
+        rc = disrfst(chan, PBS_MAXSVRJOBID + 1, psel->brp_jobid);
 
         if (rc)
           {
@@ -202,7 +203,7 @@ int decode_DIS_replySvr(
       /* have to get count of number of status objects first */
 
       CLEAR_HEAD(reply->brp_un.brp_status);
-      ct = disrui(sock, &rc);
+      ct = disrui(chan, &rc);
 
       if (rc) return rc;
 
@@ -218,11 +219,11 @@ int decode_DIS_replySvr(
 
         CLEAR_HEAD(pstsvr->brp_attr);
 
-        pstsvr->brp_objtype = disrui(sock, &rc);
+        pstsvr->brp_objtype = disrui(chan, &rc);
 
         if (rc == 0)
           {
-          rc = disrfst(sock, PBS_MAXSVRJOBID + 1,
+          rc = disrfst(chan, PBS_MAXSVRJOBID + 1,
                        pstsvr->brp_objname);
           }
 
@@ -235,7 +236,7 @@ int decode_DIS_replySvr(
         append_link(&reply->brp_un.brp_status,
 
                     &pstsvr->brp_stlink, pstsvr);
-        rc = decode_DIS_svrattrl(sock, &pstsvr->brp_attr);
+        rc = decode_DIS_svrattrl(chan, &pstsvr->brp_attr);
         }
 
       break;
@@ -244,7 +245,7 @@ int decode_DIS_replySvr(
 
       /* text reply */
 
-      reply->brp_un.brp_txt.brp_str = disrcs(sock,
+      reply->brp_un.brp_txt.brp_str = disrcs(chan,
                                              &reply->brp_un.brp_txt.brp_txtlen,
                                              &rc);
       break;
@@ -253,7 +254,7 @@ int decode_DIS_replySvr(
 
       /* Locate Job Reply */
 
-      rc = disrfst(sock, PBS_MAXDEST + 1, reply->brp_un.brp_locate);
+      rc = disrfst(chan, PBS_MAXDEST + 1, reply->brp_un.brp_locate);
       break;
 
     default:
