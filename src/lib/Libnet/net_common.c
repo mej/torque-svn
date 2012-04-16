@@ -16,6 +16,7 @@
 #include <errno.h> /* errno */
 #include <fcntl.h> /* fcntl, F_GETFL */
 #include <sys/time.h> /* gettimeofday */
+#include <poll.h> /* poll functionality */
 #include "../lib/Liblog/pbs_log.h" /* log_err */
 #include "log.h" /* LOCAL_LOG_BUF_SIZE */
 
@@ -425,37 +426,37 @@ int socket_wait_for_read(
 
   {
   int rc = PBSE_NONE;
-  int read_soc = 0;
-  fd_set rfd;
-  struct timeval timeout;
-  timeout.tv_sec = pbs_tcp_timeout;
-  timeout.tv_usec = 0;
-  FD_ZERO(&rfd);
-  FD_SET(socket, &rfd);
-  while (1)
+  int countdown = pbs_tcp_timeout*10;
+  struct pollfd pfd;
+  pfd.fd = socket;
+  pfd.events = POLLIN | POLLHUP; /* | POLLRDNORM; */
+  pfd.revents = 0;
+  while (pfd.revents == 0)
     {
-    read_soc = select(socket+1, &rfd, 0, 0, &timeout);
-    if (read_soc < 0)
+    if (poll(&pfd, 1, 100) > 0)
       {
-      if (errno == EINTR)
+      char buf[8];
+      if (recv(socket, buf, 7, MSG_PEEK | MSG_DONTWAIT) == 0)
         {
-        /* This actually isn't an error */
-        continue;
+        /* This will only occur when the socket has closed */
+        rc = PBSE_SOCKET_CLOSE;
+        break;
         }
-      /* socket close detected */
-      rc = PBSE_SOCKET_CLOSE;
-      break;
+      else
+        break; /* data exists */
       }
-    else if (read_soc == 0)
+    if (countdown <=0)
       {
       /* Server timeout reached */
       rc = PBSE_TIMEOUT;
       break;
       }
     else
-      {
-      break;
-      }
+      countdown -= 1;
+    }
+  if (pfd.revents & POLLNVAL)
+    {
+    rc = PBSE_SOCKET_CLOSE;
     }
   return rc;
   }
@@ -516,6 +517,8 @@ int socket_read_force(
   char *read_loc = the_str;
   long long tmp_len = avail_bytes;
   long long bytes_read = 1;
+  long long sock_check = 0;
+  char log_buf[LOCAL_LOG_BUF_SIZE+1];
   while (bytes_read != 0)
     {
     bytes_read = read(socket, read_loc, tmp_len);
@@ -543,6 +546,14 @@ int socket_read_force(
       tmp_len -= bytes_read;
       read_loc += bytes_read;
       *byte_count += bytes_read;
+      sock_check = socket_avail_bytes_on_descriptor(socket);
+      if (sock_check == 0)
+        {
+        log_record(PBSEVENT_SYSTEM, PBS_EVENTCLASS_REQUEST, __func__, log_buf);
+        break;
+        }
+      if (sock_check < tmp_len)
+        tmp_len = sock_check;
       }
     }
   return rc;
