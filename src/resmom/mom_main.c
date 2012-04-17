@@ -5672,14 +5672,11 @@ int kill_job(
   /* NOTE:  if path_epilogpdel is not set, kill_task should be called
    * immediately (NYI) */
 
-  if(sig == SIGTERM)
+  if (run_pelog(PE_EPILOGUSER, path_epilogpdel, pjob, PE_IO_TYPE_NULL) != 0)
     {
-    if (run_pelog(PE_EPILOGUSER, path_epilogpdel, pjob, PE_IO_TYPE_NULL) != 0)
-      {
-      log_err(-1, __func__, "precancel epilog failed");
+    log_err(-1, __func__, "precancel epilog failed");
 
-      sprintf(PBSNodeMsgBuf, "ERROR:  precancel epilog failed");
-      }
+    sprintf(PBSNodeMsgBuf, "ERROR:  precancel epilog failed");
     }
 
   ptask = (task *)GET_NEXT(pjob->ji_tasks);
