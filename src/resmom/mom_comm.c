@@ -5853,9 +5853,6 @@ void tm_eof(
       ptask != NULL;
       ptask = (task *)GET_NEXT(ptask->ti_jobtask))
       {
-      if(ptask->ti_chan == NULL)
-        continue;
-
       if (ptask->ti_chan->sock == fd)
         {
         if (LOGLEVEL >= 6)
