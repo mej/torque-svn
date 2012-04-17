@@ -2498,9 +2498,11 @@ int svr_is_request(
 
           log_err(ret, __func__, log_buf);
           }
+        free(node_name);
 
         goto err;
         }
+      free(node_name);
 
       break;
 
@@ -5056,12 +5058,14 @@ int set_nodes(
       log_record(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,pjob->ji_qs.ji_jobid,log_buf);
       }
 
+    free_naji(naji);
     return(PBSE_RESCUNAV);
     }
   else if (i < 0)
     {
     /* request failed, corrupt request */
     log_err(PBSE_UNKNODE, id, "request failed, corrupt request");
+    free_naji(naji);
     return(PBSE_UNKNODE);
     }
 

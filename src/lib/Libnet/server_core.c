@@ -173,6 +173,7 @@ int start_listener_addrinfo(
     }
   else
     {
+    freeaddrinfo(adr_svr);
     while (1)
       {
       len_inet = sizeof(struct sockaddr);

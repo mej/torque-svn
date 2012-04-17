@@ -58,7 +58,6 @@ int attempt_delete(
   int        skipped = FALSE;
   int        release_mutex = TRUE;
 
-  char      *jobid_copy;
   job       *pjob;
   time_t     time_now = time(NULL);
   char       log_buf[LOCAL_LOG_BUF_SIZE];
@@ -123,14 +122,13 @@ int attempt_delete(
     pjob->ji_momhandle = -1;
     
     /* force new connection */
-    jobid_copy = strdup(pjob->ji_qs.ji_jobid);
     if (LOGLEVEL >= 7)
       {
       sprintf(log_buf, "calling on_job_exit from %s", __func__);
       log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pjob->ji_qs.ji_jobid, log_buf);
       }
 
-    set_task(WORK_Immed, 0, on_job_exit, jobid_copy, FALSE);
+    set_task(WORK_Immed, 0, on_job_exit, strdup(pjob->ji_qs.ji_jobid), FALSE);
     }
   else if ((pjob->ji_qs.ji_svrflags & JOB_SVFLG_StagedIn) != 0)
     {
@@ -170,15 +168,13 @@ int attempt_delete(
         0);
       pthread_mutex_unlock(server.sv_attr_mutex);
       
-      jobid_copy = strdup(pjob->ji_qs.ji_jobid);
-      
       if (LOGLEVEL >= 7)
         {
         sprintf(log_buf, "calling on_job_exit from %s", __func__);
         log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pjob->ji_qs.ji_jobid, log_buf);
         }
       
-      set_task(WORK_Timed, time_now + KeepSeconds, on_job_exit, jobid_copy, FALSE);
+      set_task(WORK_Timed, time_now + KeepSeconds, on_job_exit, strdup(pjob->ji_qs.ji_jobid), FALSE);
       }
     else
       release_mutex = FALSE;
@@ -362,7 +358,6 @@ void array_delete_wt(
 
   int                   i;
 
-  char                 *jobid_copy;
   char                  log_buf[LOCAL_LOG_BUF_SIZE];
   int                   num_jobs = 0;
   int                   num_prerun = 0;
@@ -411,14 +406,12 @@ void array_delete_wt(
           pjob->ji_momhandle = -1;
           
           /* force new connection */
-          jobid_copy = strdup(pjob->ji_qs.ji_jobid);
-          
           if (LOGLEVEL >= 7)
             {
             sprintf(log_buf, "calling on_job_exit from %s", __func__);
             log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pjob->ji_qs.ji_jobid, log_buf);
             }
-          set_task(WORK_Immed, 0, on_job_exit, jobid_copy, FALSE);
+          set_task(WORK_Immed, 0, on_job_exit, strdup(pjob->ji_qs.ji_jobid), FALSE);
           
           pthread_mutex_unlock(pjob->ji_mutex);
           }

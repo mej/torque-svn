@@ -549,6 +549,7 @@ int socket_read_force(
       sock_check = socket_avail_bytes_on_descriptor(socket);
       if (sock_check == 0)
         {
+        snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "ioctl hsa been lying, expected avail %lld, actual avail %lld", tmp_len, sock_check);
         log_record(PBSEVENT_SYSTEM, PBS_EVENTCLASS_REQUEST, __func__, log_buf);
         break;
         }

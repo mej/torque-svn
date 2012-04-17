@@ -287,7 +287,6 @@ int execute_job_delete(
 
   int               rc;
   char             *sigt = "SIGTERM";
-  char             *jobid_copy;
 
   int               has_mutex = TRUE;
   char              log_buf[LOCAL_LOG_BUF_SIZE];
@@ -554,8 +553,6 @@ jump:
     pjob->ji_momhandle = -1;
 
     /* force new connection */
-    jobid_copy = strdup(pjob->ji_qs.ji_jobid);
-
     if(LOGLEVEL >= 7)
       {
       sprintf(log_buf, "calling on_job_exit from %s", id);
@@ -565,7 +562,7 @@ jump:
         pjob->ji_qs.ji_jobid,
         log_buf);
       }
-    set_task(WORK_Immed, 0, on_job_exit, jobid_copy, FALSE);
+    set_task(WORK_Immed, 0, on_job_exit, strdup(pjob->ji_qs.ji_jobid), FALSE);
     }
   else if ((pjob->ji_qs.ji_svrflags & JOB_SVFLG_StagedIn) != 0)
     {
@@ -613,9 +610,7 @@ jump:
 
     if (pjob != NULL)
       {
-      jobid_copy = strdup(pjob->ji_qs.ji_jobid);
-      
-      set_task(WORK_Timed, time_now + KeepSeconds, on_job_exit, jobid_copy, FALSE);
+      set_task(WORK_Timed, time_now + KeepSeconds, on_job_exit, strdup(pjob->ji_qs.ji_jobid), FALSE);
       }
     else
       has_mutex = FALSE;

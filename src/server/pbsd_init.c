@@ -2029,7 +2029,6 @@ int pbsd_init_job(
   unsigned int      d;
 
   time_t            time_now = time(NULL);
-  char             *jobid_copy;
   char              log_buf[LOCAL_LOG_BUF_SIZE];
   int               local_errno = 0;
 
@@ -2199,9 +2198,7 @@ int pbsd_init_job(
 
       apply_job_delete_nanny(pjob, time_now + 60);
 
-      jobid_copy = strdup(pjob->ji_qs.ji_jobid);
-
-      set_task(WORK_Immed, 0, on_job_exit, jobid_copy, FALSE);
+      set_task(WORK_Immed, 0, on_job_exit, strdup(pjob->ji_qs.ji_jobid), FALSE);
 
       pbsd_init_reque(pjob, KEEP_STATE);
 
@@ -2210,9 +2207,7 @@ int pbsd_init_job(
     case JOB_SUBSTATE_COMPLETE:
 
       /* Completed jobs are no longer purged on startup */
-      jobid_copy = strdup(pjob->ji_qs.ji_jobid);
-
-      set_task(WORK_Immed, 0, on_job_exit, jobid_copy, FALSE);
+      set_task(WORK_Immed, 0, on_job_exit, strdup(pjob->ji_qs.ji_jobid), FALSE);
 
       pbsd_init_reque(pjob, KEEP_STATE);
 
