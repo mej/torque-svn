@@ -242,7 +242,7 @@ void *process_svr_conn(
   int msg_len = 0;
   int debug_mark = 0;
   int local_socket = *(int *)sock;
-  free(sock);
+  /*free(sock);*/
   /* incoming message format is:
    * trq_system_len|trq_system|trq_port|Validation_type|user_len|user|psock|
    * message format to pbs_server is:
@@ -342,5 +342,6 @@ void *process_svr_conn(
   if (send_message != NULL)
     free(send_message);
   socket_close(local_socket);
+  free(sock);
   return NULL;
   }

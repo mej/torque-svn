@@ -596,6 +596,7 @@ int validate_socket(
         {
         fprintf(stderr, "%s : Connection authorized (server socket %d)\n", id, parent_client_socket);
         }
+      socket_close(local_socket);
       }
     }
   if (rc != PBSE_NONE)

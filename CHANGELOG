@@ -38,6 +38,10 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   b - Fix so pbs_mom won't segfault after a qdel is done for a job that is still
       running the prologue. TRQ-832.
   b - Fix for segfault when using routing queues in pbs_server. TRQ-808
+  b - Added a close socket to validate_socket to properly terminate the connection. 
+      Moved the free of the incoming variable sock to process_svr_conn from the
+      beginning of the function to the end. This fixed a problem where the client
+      would always get a RST when trying to close its end of the connection.
 
 4.0.0
   e - make a threadpool for TORQUE server. The number of threads is 
