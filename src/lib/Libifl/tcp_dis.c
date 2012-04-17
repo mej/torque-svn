@@ -221,6 +221,8 @@ int tcp_read(
         chan->ReadErrno = rc;
         break;
       }
+    if (new_data != NULL)
+      free(new_data);
     return rc;
     }
   /* data read is less than buffer size */
@@ -279,7 +281,6 @@ int tcp_read(
       log_err(PBSE_INTERNAL,__func__,err_msg);
       }
     free(new_data);
-
     }
   return rc;
   }  /* END tcp_read() */

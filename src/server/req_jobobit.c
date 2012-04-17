@@ -639,7 +639,6 @@ int mom_comm(
   unsigned int      dummy;
   time_t            time_now = time(NULL);
 
-  char             *jobid_copy;
   int               local_errno = 0;
   int               handle = -1;
 
@@ -671,9 +670,7 @@ int mom_comm(
           "cannot establish connection with mom for clean-up - will retry later");
       }
 
-    jobid_copy = strdup(pjob->ji_qs.ji_jobid);
-
-    set_task(WORK_Timed, time_now + PBS_NET_RETRY_TIME, func, jobid_copy, FALSE);
+    set_task(WORK_Timed, time_now + PBS_NET_RETRY_TIME, func, strdup(pjob->ji_qs.ji_jobid), FALSE);
 
     return(-1);
     }
@@ -1051,10 +1048,6 @@ int handle_stageout(
   char *job_momname = NULL;
   char job_fileprefix[PBS_JOBBASE+1];
 
-
-
-
-
   strcpy(job_id, pjob->ji_qs.ji_jobid);
   strcpy(job_fileprefix, pjob->ji_qs.ji_fileprefix);
   job_momname = strdup(pjob->ji_wattr[JOB_ATR_exec_host].at_val.at_str);
@@ -1064,8 +1057,6 @@ int handle_stageout(
     rc = PBSE_MEM_MALLOC;
     goto handle_stageout_cleanup;
     }
-
-
   
   if (LOGLEVEL >= 4)
     log_event(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,job_id,"JOB_SUBSTATE_STAGEOUT");
@@ -1249,6 +1240,11 @@ int handle_stageout(
       }
 
     free(namebuf2);
+    if (preq->rq_extra != NULL)
+      {
+      free(preq->rq_extra);
+      preq->rq_extra = NULL;
+      }
 
     free_br(preq);
 
@@ -1262,6 +1258,11 @@ int handle_stageout(
     }
  
 handle_stageout_cleanup:
+  if ((preq != NULL) && (preq->rq_extra != NULL))
+    {
+    free(preq->rq_extra);
+    preq->rq_extra = NULL;
+    }
    if (job_momname != NULL)
     free(job_momname); 
   return rc;
@@ -1709,12 +1710,17 @@ void on_job_exit(
     preq = NULL;
 
     job_id = strdup((char *)ptask->wt_parm1);
+    free(ptask->wt_parm1);
     }
   else
     {
     preq = (struct batch_request *)ptask->wt_parm1;
     if (preq->rq_extra != NULL)
+      {
       job_id = strdup((char *)preq->rq_extra);
+      free(preq->rq_extra);
+      preq->rq_extra = NULL;
+      }
     else
       {
       /* Something is broken. */
@@ -1828,6 +1834,9 @@ void on_job_exit(
         handle_complete_second_time(pjob);
       break;
     }  /* END switch (pjob->ji_qs.ji_substate) */
+
+  if (job_id != NULL)
+    free(job_id);
 
   return;
   }  /* END on_job_exit() */
@@ -2462,7 +2471,6 @@ int req_jobobit(
   int                   local_errno = 0;
   char                 *pc;
   char                 *tmp;
-  char                 *jobid_copy;
   job                  *pjob;
   char                  jobid[PBS_MAXSVRJOBID+1];
 
@@ -2877,15 +2885,13 @@ int req_jobobit(
         acctbuf);
       }
 
-    jobid_copy = strdup(pjob->ji_qs.ji_jobid);
-
     if (LOGLEVEL >= 7)
       {
       sprintf(log_buf, "calling on_job_exit from %s", __func__);
       log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pjob->ji_qs.ji_jobid, log_buf);
       }
 
-    set_task(WORK_Immed, 0, on_job_exit, jobid_copy, FALSE);
+    set_task(WORK_Immed, 0, on_job_exit, strdup(pjob->ji_qs.ji_jobid), FALSE);
 
     /* decrease array running job count */
     if ((pjob->ji_arraystruct != NULL) &&
