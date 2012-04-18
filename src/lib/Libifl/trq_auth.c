@@ -218,7 +218,7 @@ void send_svr_disconnect(int sock, char *user_name)
   if ((rc = socket_write(sock, resp_msg, resp_msg_len)) != resp_msg_len)
     {
     if (debug_mode == TRUE)
-      fprintf(stderr, "Can not close socket to pbs_server!! (socket #%d)\n", sock);
+      fprintf(stderr, "Can not send close message to pbs_server!! (socket #%d)\n", sock);
     }
   free(resp_msg);
   }
