@@ -5511,7 +5511,8 @@ int do_tcp(
 
       break;
     }  /* END switch (proto) */
-  DIS_tcp_cleanup(chan);
+  if (proto != TM_PROTOCOL)
+    DIS_tcp_cleanup(chan);
   return rc;
 
 do_tcp_cleanup:

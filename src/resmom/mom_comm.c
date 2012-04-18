@@ -7151,6 +7151,8 @@ int tm_request(
     {
     sprintf(log_buffer, "job %s not found",
             jobid);
+    tm_reply(chan, TM_ERROR, event);
+    DIS_tcp_wflush(chan);
  
     goto err;
     }
@@ -7198,7 +7200,7 @@ int tm_request(
  
     log_err(-1, id, log_buffer);
  
-    ret = tm_reply(ptask->ti_chan, TM_ERROR, event);
+    ret = tm_reply(chan, TM_ERROR, event);
  
     if (ret != DIS_SUCCESS)
       goto tm_req_finish;
