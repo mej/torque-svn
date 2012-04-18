@@ -17,6 +17,8 @@ int dispatch_request(int sfds, struct batch_request *request);
 
 struct batch_request *alloc_br(int type);
 
+int close_quejob_by_jobid(char *job_id);
+
 /* static void close_quejob(int sfds); */
 
 void free_br(struct batch_request *preq);

@@ -187,7 +187,6 @@ static const int munge_on = 0;
 
 static void freebr_manage(struct rq_manage *);
 static void freebr_cpyfile(struct rq_cpyfile *);
-static void close_quejob(int sfds);
 static void free_rescrq(struct rq_rescq *);
 
 /* END private prototypes */
@@ -682,6 +681,7 @@ int dispatch_request(
   int  rc = PBSE_NONE;
   char *id = "dispatch_request";
   char  log_buf[LOCAL_LOG_BUF_SIZE];
+  char *job_id = NULL;
 
   if (LOGLEVEL >= 5)
     {
@@ -695,36 +695,48 @@ int dispatch_request(
   switch (request->rq_type)
     {
     case PBS_BATCH_QueueJob:
-
-      net_add_close_func(sfds, close_quejob);
-
-      rc = req_quejob(request);
-
+      rc = req_quejob(request, &job_id);
+      if ((rc != PBSE_NONE) && (job_id != NULL))
+        close_quejob_by_jobid(job_id);
+      if (job_id != NULL)
+        free(job_id);
       break;
+
 
     case PBS_BATCH_JobCred:
-
       rc = req_jobcredential(request);
-
       break;
+
 
     case PBS_BATCH_jobscript:
-
+      job_id = strdup(request->rq_ind.rq_jobfile.rq_jobid);
       rc = req_jobscript(request);
+      if ((rc != PBSE_NONE) && (job_id != NULL))
+        close_quejob_by_jobid(job_id);
+      if (job_id != NULL)
+        free(job_id);
       break;
+
 
     case PBS_BATCH_RdytoCommit:
-
+      job_id = strdup(request->rq_ind.rq_rdytocommit);
       rc = req_rdytocommit(request);
+      if ((rc != PBSE_NONE) && (job_id != NULL))
+        close_quejob_by_jobid(job_id);
+      if (job_id != NULL)
+        free(job_id);
       break;
+
 
     case PBS_BATCH_Commit:
-
+      job_id = strdup(request->rq_ind.rq_commit);
       rc = req_commit(request);
-
-      net_add_close_func(sfds, NULL);
-
+      if ((rc != PBSE_NONE) && (job_id != NULL))
+        close_quejob_by_jobid(job_id);
+      if (job_id != NULL)
+        free(job_id);
       break;
+
 
     case PBS_BATCH_DeleteJob:
 
@@ -1001,76 +1013,38 @@ struct batch_request *alloc_br(
 
 
 
-
-
-/*
- * close_quejob - locate and deal with the new job that was being recevied
- *    when the net connection closed.
- */
-
-static void close_quejob(
-
-  int sfds)
-
+int close_quejob_by_jobid(char *job_id)
   {
-  job *pjob;
   int rc = PBSE_NONE;
+  job *pjob = NULL;
 
-  int iter = -1;
-
-  while ((pjob = next_job(&newjobs,&iter)) != NULL)
+  if ((pjob = find_job(job_id)) == NULL)
     {
-    if (pjob->ji_qs.ji_un.ji_newt.ji_fromsock == sfds)
-      {
-      if (pjob->ji_qs.ji_substate == JOB_SUBSTATE_TRANSICM)
-        {
-        if (pjob->ji_qs.ji_svrflags & JOB_SVFLG_HERE)
-          {
-          /*
-           * the job was being created here for the first time
-           * go ahead and enqueue it as QUEUED; otherwise, hold
-           * it here as TRANSICM until we hear from the sending
-           * server again to commit.
-           */
-
-          remove_job(&newjobs,pjob);
-
-          pjob->ji_qs.ji_state = JOB_STATE_QUEUED;
-          pjob->ji_qs.ji_substate = JOB_SUBSTATE_QUEUED;
-
-          rc = svr_enquejob(pjob, FALSE, -1);
-          if (rc == PBSE_JOBNOTFOUND)
-            {
-            pjob = NULL;
-            break;
-            }
-          else if (rc != PBSE_NONE)
-            job_abt(&pjob, msg_err_noqueue);
-          }
-        }
-      else
-        {
-        /* else delete the job */
-        remove_job(&newjobs,pjob);
-
-        job_purge(pjob);
-
-        pjob = NULL;
-        }
-
-      break;
-      }  /* END if (..) */
-
-    pthread_mutex_unlock(pjob->ji_mutex);
+    rc = PBSE_JOBNOTFOUND;
     }
-
+  else if (pjob->ji_qs.ji_substate != JOB_SUBSTATE_TRANSICM)
+    {
+    remove_job(&newjobs,pjob);
+    job_purge(pjob);
+    pjob = NULL;
+    }
+  else if (pjob->ji_qs.ji_svrflags & JOB_SVFLG_HERE)
+    {
+    remove_job(&newjobs,pjob);
+    pjob->ji_qs.ji_state = JOB_STATE_QUEUED;
+    pjob->ji_qs.ji_substate = JOB_SUBSTATE_QUEUED;
+    rc = svr_enquejob(pjob, FALSE, -1);
+    if (rc == PBSE_JOBNOTFOUND)
+      {
+      pjob = NULL;
+      }
+    else if (rc != PBSE_NONE)
+      job_abt(&pjob, msg_err_noqueue);
+    }
   if (pjob != NULL)
     pthread_mutex_unlock(pjob->ji_mutex);
-
-  return;
-  }  /* END close_quejob() */
-
-
+  return rc;
+  }
 
 
 

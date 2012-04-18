@@ -472,7 +472,8 @@ int set_node_attr(
 
 int req_quejob(
 
-  struct batch_request *preq)
+  struct batch_request *preq,
+  char **pjob_id)
 
   {
   int                   created_here = 0;
@@ -1423,6 +1424,7 @@ int req_quejob(
   insert_job(&newjobs,pj);
 
   unlock_queue(pque, __func__, "success", LOGLEVEL);
+  *pjob_id = strdup(pj->ji_qs.ji_jobid);
   pthread_mutex_unlock(pj->ji_mutex);
 
   return rc;
@@ -1480,7 +1482,7 @@ int req_jobcredential(
 
 int req_jobscript(
 
-  struct batch_request *preq) /* ptr to the decoded request*/
+  struct batch_request *preq)
 
   {
   int   fds;
@@ -2236,33 +2238,27 @@ static job *locate_new_job(
 
   while ((pj = next_job(&newjobs,&iter)) != NULL)
     {
-    if ((pj->ji_qs.ji_un.ji_newt.ji_fromsock == -1) ||
-        ((pj->ji_qs.ji_un.ji_newt.ji_fromsock == sock) &&
-         (pj->ji_qs.ji_un.ji_newt.ji_fromaddr == get_connectaddr(sock,TRUE))))
+    if ((jobid != NULL) && (*jobid != '\0'))
       {
-      if ((jobid != NULL) && (*jobid != '\0'))
+      if (!strncmp(pj->ji_qs.ji_jobid, jobid, PBS_MAXSVRJOBID))
         {
-        if (!strncmp(pj->ji_qs.ji_jobid, jobid, PBS_MAXSVRJOBID))
-          {
-          /* requested job located */
-
-          break;
-          }
-        }
-      else if (pj->ji_qs.ji_un.ji_newt.ji_fromsock == -1)
-        {
-        /* empty job slot located */
+        /* requested job located */
 
         break;
         }
-      else
-        {
-        /* matching job slot located */
+      }
+    else if (pj->ji_qs.ji_un.ji_newt.ji_fromsock == -1)
+      {
+      /* empty job slot located */
 
-        break;
-        }
-      }    /* END if ((pj->ji_qs.ji_un.ji_newt.ji_fromsock == -1) || ...) */
+      break;
+      }
+    else
+      {
+      /* matching job slot located */
 
+      break;
+      }
     pthread_mutex_unlock(pj->ji_mutex);
     }  /* END while(pj != NULL) */
 
