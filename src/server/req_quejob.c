@@ -1881,8 +1881,8 @@ int req_rdytocommit(
       strerror(errno));
     log_err(rc, __func__, log_buf);
     close_conn(sock,FALSE);
-    pj = find_job(jobid);
-    job_purge(pj);
+    if ((pj = find_job(jobid)) != NULL)
+      job_purge(pj);
     return rc;
     }
 
