@@ -247,6 +247,8 @@ PbsErrClient(PBSE_CONNECT, "Can not establish connection")
 PbsErrClient(PBSE_JOBWORKDELAY, "Job function must be temporarily delayed")
 PbsErrClient(PBSE_BAD_PARAMETER, "Parameter of function was invalid")
 PbsErrClient(PBSE_CONTINUE, "Continue processing on job. (Not an error)")
+PbsErrClient(PBSE_JOBSUBSTATE, "Current sub state does not allow trasaction.")
+
 
 
 /* pbs client errors ceiling (max_client_err + 1) */

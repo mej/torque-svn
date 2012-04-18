@@ -825,8 +825,6 @@ int add_conn(
 
 
 
-
-
 /*
  * close_conn - close a network connection
  * does physical close, also marks the connection table
@@ -855,7 +853,7 @@ void close_conn(
     /* apparently we did not add the socket to the connection table */
 
     snprintf(log_message, LOG_BUF_SIZE, "%s: svr_conn[%d] is idle", __func__, sd);
-    log_event(PBSEVENT_SYSTEM,PBS_EVENTCLASS_NODE,__func__,log_message);
+    log_event(PBSEVENT_SYSTEM,PBS_EVENTCLASS_SERVER,__func__,log_message);
 
 /*    rc = close(sd);
     if (rc == 0)
@@ -867,7 +865,6 @@ void close_conn(
       svr_conn[sd].cn_func = (void *(*)())0;
       svr_conn[sd].cn_authen = 0;
       }*/
-   
     if (has_mutex == FALSE) 
       pthread_mutex_unlock(svr_conn[sd].cn_mutex);
     return;
@@ -879,7 +876,7 @@ void close_conn(
     {
     snprintf(log_message, LOG_BUF_SIZE, "Connection %d - func %lx",
         sd, (unsigned long)svr_conn[sd].cn_oncl);
-    log_event(PBSEVENT_SYSTEM,PBS_EVENTCLASS_NODE,__func__,log_message);
+    log_event(PBSEVENT_SYSTEM,PBS_EVENTCLASS_SERVER,__func__,log_message);
     svr_conn[sd].cn_oncl(sd);
     }
 
