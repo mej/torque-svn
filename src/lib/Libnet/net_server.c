@@ -542,11 +542,7 @@ int wait_request(
           continue;
 
         /* clean up SdList and bad sd... */
-
-        pthread_mutex_lock(global_sock_read_mutex);
-        FD_CLR(i, GlobalSocketReadSet);
-        pthread_mutex_unlock(global_sock_read_mutex);
-
+        globalset_del_sock(i);
         } /* END for each socket in global read set */
 
       free(SelectSet);
@@ -589,10 +585,7 @@ int wait_request(
       else
         {
         pthread_mutex_unlock(svr_conn[i].cn_mutex);
-        pthread_mutex_lock(global_sock_read_mutex);
-        FD_CLR(i, GlobalSocketReadSet);
-        pthread_mutex_unlock(global_sock_read_mutex);
-
+        globalset_del_sock(i);
         close_conn(i, FALSE);
 
         pthread_mutex_lock(num_connections_mutex);
@@ -748,6 +741,21 @@ void *accept_conn(
   }  /* END accept_conn() */
 
 
+void globalset_add_sock(
+    int sock)
+  {
+  pthread_mutex_lock(global_sock_read_mutex);
+  FD_SET(sock, GlobalSocketReadSet);
+  pthread_mutex_unlock(global_sock_read_mutex);
+  }
+
+void globalset_del_sock(
+    int sock)
+  {
+  pthread_mutex_lock(global_sock_read_mutex);
+  FD_CLR(sock, GlobalSocketReadSet);
+  pthread_mutex_unlock(global_sock_read_mutex);
+  }
 
 
 /*
@@ -777,9 +785,7 @@ int add_conn(
   num_connections++;
   pthread_mutex_unlock(num_connections_mutex);
 
-  pthread_mutex_lock(global_sock_read_mutex);
-  FD_SET(sock, GlobalSocketReadSet);
-  pthread_mutex_unlock(global_sock_read_mutex);
+  globalset_add_sock(sock);
 
   pthread_mutex_lock(svr_conn[sock].cn_mutex);
 
@@ -887,9 +893,7 @@ void close_conn(
 
   if (GlobalSocketReadSet != NULL)
     {
-    pthread_mutex_lock(global_sock_read_mutex);
-    FD_CLR(sd, GlobalSocketReadSet);
-    pthread_mutex_unlock(global_sock_read_mutex);
+    globalset_del_sock(sd);
     }
 
   svr_conn[sd].cn_addr = 0;

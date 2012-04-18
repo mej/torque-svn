@@ -117,6 +117,7 @@
 #include "array.h"
 #include "req_stat.h"
 #include "../lib/Libutils/u_lock_ctl.h" /* lock_node, unlock_node */
+#include "../lib/Libnet/lib_net.h" /* globalset_del_sock */
 #include "svr_func.h" /* get_svr_attr_* */
 #include "req_gpuctrl.h" /* req_gpuctrl_svr */
 #include "req_getcred.h" /* req_altauthenuer */ 
@@ -844,7 +845,7 @@ int dispatch_request(
     case PBS_BATCH_RunJob:
 
     case PBS_BATCH_AsyrunJob:
-
+      globalset_del_sock(request->rq_conn);
       rc = req_runjob(request);
 
       break;
