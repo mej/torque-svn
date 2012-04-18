@@ -5853,6 +5853,9 @@ void tm_eof(
       ptask != NULL;
       ptask = (task *)GET_NEXT(ptask->ti_jobtask))
       {
+      if(ptask->ti_chan == NULL)
+        continue;
+
       if (ptask->ti_chan->sock == fd)
         {
         if (LOGLEVEL >= 6)
@@ -7426,8 +7429,11 @@ tm_req_finish:
       
       log_err(errno, id, log_buffer);
       
-      close_conn(ptask->ti_chan->sock, FALSE);
-      DIS_tcp_cleanup(ptask->ti_chan);
+      if(ptask->ti_chan != NULL)
+        {
+        close_conn(ptask->ti_chan->sock, FALSE);
+        DIS_tcp_cleanup(ptask->ti_chan);
+        }
       }
     }
   
