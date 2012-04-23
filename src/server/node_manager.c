@@ -1999,19 +1999,14 @@ void stream_eof(
 
   {
   char            log_buf[LOCAL_LOG_BUF_SIZE];
+  enum conn_type        cntype = ToServerDIS;
+  int             conn;
+  int             my_err = 0;
 
   struct pbsnode *np;
 
 
   np = NULL;
-
-  if (stream >= 0)
-    {
-    close(stream);
-
-    /* find who the stream belongs to and mark down */
-    np = AVL_find(stream, 0, streams);
-    }
 
   if ((np == NULL) && (addr != 0))
     {
@@ -2024,6 +2019,15 @@ void stream_eof(
 
     return;
     }
+
+  /* Before we mark this node down see if we can connect */
+  conn = svr_connect(addr, port, &my_err, np, NULL, cntype);
+  if(conn >= 0)
+    {
+    close_conn(conn, FALSE);
+    return;
+    }
+
 
   lock_node(np, __func__, "parent", LOGLEVEL);
 
