@@ -139,7 +139,7 @@ static volatile int  log_opened = 0;
 static int      syslogopen = 0;
 #endif /* SYSLOG */
 
-pthread_mutex_t *log_mutex;
+pthread_mutex_t *log_mutex = NULL;
 
 /* variables for job logging */
 static int      job_log_auto_switch = 0;
