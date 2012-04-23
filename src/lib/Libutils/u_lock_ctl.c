@@ -145,7 +145,7 @@ int lock_node(
   char  err_msg[MSG_LEN_LONG + 1];
   char  stub_msg[] = "no pos";
   
-  if (logging >= 6)
+  if (logging >= 7)
     {
     if (msg == NULL)
       msg = stub_msg;
@@ -156,7 +156,7 @@ int lock_node(
   
   if (pthread_mutex_lock(the_node->nd_mutex) != 0)
     {
-    if (logging >= 6)
+    if (logging >= 7)
       {
       snprintf(err_msg, MSG_LEN_LONG, "ALERT: cannot lock node %s mutex in method %s",
           the_node->nd_name, id);
@@ -165,7 +165,7 @@ int lock_node(
     rc = PBSE_MUTEX;
     }
   
-  if (logging >= 6)
+  if (logging >= 7)
     {
     snprintf(err_msg, MSG_LEN_LONG, "locking complete %s in method %s", the_node->nd_name, id);
     log_record(PBSEVENT_DEBUG, PBS_EVENTCLASS_NODE, id, err_msg);
@@ -186,7 +186,7 @@ int unlock_node(
   char  err_msg[MSG_LEN_LONG + 1];
   char  stub_msg[] = "no pos";
 
-  if (logging >= 6)
+  if (logging >= 7)
     {
     if (msg == NULL)
       msg = stub_msg;
@@ -196,7 +196,7 @@ int unlock_node(
 
   if (pthread_mutex_unlock(the_node->nd_mutex) != 0)
     {
-    if (logging >= 6)
+    if (logging >= 7)
       {
       snprintf(err_msg, MSG_LEN_LONG, "ALERT: cannot unlock node %s mutex in method %s",
           the_node->nd_name, id);
