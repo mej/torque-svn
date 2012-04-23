@@ -44,6 +44,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       would always get a RST when trying to close its end of the connection.
   b - Fix so epilogue.precancel runs only once and only for cancelled jobs. TRQ-831.
   b - fix a mom hiearchy error for running the moms on non-default ports
+  b - Fix server segfault for where mom in nodes file is not in mom_hierarchy. TRQ-873.
 
 4.0.0
   e - make a threadpool for TORQUE server. The number of threads is 
