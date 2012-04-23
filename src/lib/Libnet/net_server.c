@@ -857,20 +857,6 @@ void close_conn(
   if (svr_conn[sd].cn_active == Idle)
     {
     /* apparently we did not add the socket to the connection table */
-
-    snprintf(log_message, LOG_BUF_SIZE, "%s: svr_conn[%d] is idle", __func__, sd);
-    log_event(PBSEVENT_SYSTEM,PBS_EVENTCLASS_SERVER,__func__,log_message);
-
-/*    rc = close(sd);
-    if (rc == 0)
-      {
-      snprintf(log_message, LOG_BUF_SIZE, "closed a valid socket [%d]", sd);
-      svr_conn[sd].cn_addr = 0;
-      svr_conn[sd].cn_handle = -1;
-      svr_conn[sd].cn_active = Idle;
-      svr_conn[sd].cn_func = (void *(*)())0;
-      svr_conn[sd].cn_authen = 0;
-      }*/
     if (has_mutex == FALSE) 
       pthread_mutex_unlock(svr_conn[sd].cn_mutex);
     return;
