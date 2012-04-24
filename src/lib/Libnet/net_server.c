@@ -439,15 +439,12 @@ int init_network(
 
 #endif  /* END ENABLE_UNIX_SOCKETS */
 
-  if (port != 0)
-    {
     /* allocate a minute's worth of counter structs */
 
-    if (nc_list_mutex == NULL)
-      {
-      nc_list_mutex = calloc(1, sizeof(pthread_mutex_t));
-      pthread_mutex_init(nc_list_mutex,NULL);
-      }
+  if (nc_list_mutex == NULL)
+    {
+    nc_list_mutex = calloc(1, sizeof(pthread_mutex_t));
+    pthread_mutex_init(nc_list_mutex,NULL);
 
     pthread_mutex_lock(nc_list_mutex);
 
@@ -901,6 +898,7 @@ void close_conn(
   svr_conn[sd].cn_active = Idle;
   svr_conn[sd].cn_func = (void *(*)())0;
   svr_conn[sd].cn_authen = 0;
+  svr_conn[sd].is_tm = 0;
   rc = close(sd);
     
   if (has_mutex == FALSE)

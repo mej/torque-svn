@@ -31,5 +31,6 @@ int tcp_puts(struct tcp_chan *chan, const char *, size_t);
 int tcp_rcommit(struct tcp_chan *chan, int);
 int tcp_wcommit(struct tcp_chan *chan, int);
 int tcp_rskip(struct tcp_chan *chan,size_t);
+int tcp_chan_has_data(struct tcp_chan *chan);
 
 #endif /* TCP_PBS_H */

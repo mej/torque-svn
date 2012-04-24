@@ -2230,13 +2230,6 @@ int im_join_job_as_sister(
     psatl = (svrattrl *)GET_NEXT(psatl->al_link);
     }
 
-  /* write a reply back */
-/*  if (job_radix == FALSE)
-    write_tcp_reply(chan, IM_PROTOCOL, IM_PROTOCOL_VER, IM_JOIN_JOB, PBSE_NONE);
-  else
-    write_tcp_reply(chan, IM_PROTOCOL, IM_PROTOCOL_VER, IM_JOIN_JOB_RADIX, PBSE_NONE);
-*/
-  
   strcpy(pjob->ji_qs.ji_jobid, jobid);
   
   strcpy(pjob->ji_qs.ji_fileprefix, basename);
@@ -2543,10 +2536,6 @@ void im_kill_job_as_sister(
     }
   else
     exiting_tasks = 1; /* Setting this to 1 will cause scan_for_exiting to execute */  
-/*  if(radix == FALSE)
-    write_tcp_reply(stream, IM_PROTOCOL, IM_PROTOCOL_VER, IM_KILL_JOB, PBSE_NONE);
-  else
-    write_tcp_reply(stream, IM_PROTOCOL, IM_PROTOCOL_VER, IM_KILL_JOB_RADIX, PBSE_NONE);*/
   } /* END im_kill_job_as_sister() */
 
 
@@ -3651,8 +3640,6 @@ int handle_im_join_job_response(
     return(IM_FAILURE);
     }
 
-  write_tcp_reply(chan, IM_PROTOCOL, IM_PROTOCOL_VER, IM_JOIN_JOB, PBSE_NONE);
-
   /* This is an O(N) algorithm We should do a countdown instead */
   for (i = 0;i < pjob->ji_numnodes;i++)
     {
@@ -3770,12 +3757,6 @@ int handle_im_kill_job_response(
         pjob->ji_resources[nodeidx - 1].nr_vmem = disrul(chan, &ret);
       }
     
-    if (ret != DIS_SUCCESS)
-      {
-      write_tcp_reply(chan, IM_PROTOCOL, IM_PROTOCOL_VER, event_com, IM_FAILURE);
-      return(IM_FAILURE);
-      }
-    
     if (LOGLEVEL >= 7)
       {
       snprintf(log_buffer,sizeof(log_buffer),
@@ -3860,8 +3841,6 @@ int handle_im_spawn_task_response(
 
   taskid = disrsi(chan, &ret);
 
-  write_tcp_reply(chan, IM_PROTOCOL, IM_PROTOCOL_VER, IM_SPAWN_TASK, ret);
-  
   if (ret != DIS_SUCCESS)
     return(IM_FAILURE);
 
@@ -4023,8 +4002,6 @@ int handle_im_obit_task_response(
 
   exitval = disrsi(chan, &ret);
 
-  write_tcp_reply(chan, IM_PROTOCOL, IM_PROTOCOL_VER, IM_OBIT_TASK, ret);
-  
   if (ret != DIS_SUCCESS)
     return(IM_FAILURE);
 
@@ -4214,12 +4191,6 @@ int handle_im_poll_job_response(
       }
     }
   
-  if (ret != DIS_SUCCESS)
-    {
-    write_tcp_reply(chan, IM_PROTOCOL, IM_PROTOCOL_VER, IM_POLL_JOB, ret);
-    return(IM_FAILURE);
-    }
-
   if (LOGLEVEL >= 7)
     {
     snprintf(log_buffer,sizeof(log_buffer),
@@ -5100,8 +5071,6 @@ void im_request(
             log_err(-1, __func__, "handle_im_poll_job_response error");
             goto err;
             }
-          /* Does the server ever send this? *MUTSU* */
-          write_tcp_reply(chan, IM_PROTOCOL, IM_PROTOCOL_VER, IM_POLL_JOB, PBSE_NONE);
           close_conn(chan->sock, FALSE);
           chan->sock = -1;
 
@@ -5168,7 +5137,6 @@ void im_request(
           {
           close_conn(chan->sock, FALSE);
           chan->sock = -1;
-/*          write_tcp_reply(chan, IM_PROTOCOL, IM_PROTOCOL_VER, IM_JOIN_JOB_RADIX, PBSE_NONE); */
 
           pjob = find_job(jobid);
           if (pjob != NULL)
@@ -6705,7 +6673,7 @@ int tm_obit_request(
 
     close(local_socket);
     if (local_chan != NULL)
-      DIS_tcp_cleanup(chan);
+      DIS_tcp_cleanup(local_chan);
     
     return(TM_DONE);
     }
@@ -7435,6 +7403,7 @@ tm_req_finish:
         {
         close_conn(ptask->ti_chan->sock, FALSE);
         DIS_tcp_cleanup(ptask->ti_chan);
+        ptask->ti_chan = NULL;
         }
       }
     }
