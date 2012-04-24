@@ -1799,15 +1799,6 @@ int main(
     log_buf);
 
 
-  if (init_network(63000, start_process_pbs_server_port) != 0)
-    {
-    perror("pbs_server: network");
-
-    log_err(-1, msg_daemonname, "init_network failed dis");
-
-    exit(3);
-    }
-
   if (init_network(0, start_process_pbs_server_port) != 0)
     {
     perror("pbs_server: unix domain socket");

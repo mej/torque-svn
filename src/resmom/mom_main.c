@@ -60,6 +60,7 @@
 #include "../lib/Liblog/log_event.h"
 #include "../lib/Liblog/chk_file_sec.h"
 #include "../lib/Liblog/setup_env.h"
+#include "../lib/Libnet/lib_net.h" /* socket_avail_bytes_on_descriptor */
 #include "net_connect.h"
 #include "rpp.h"
 #include "dis.h"
@@ -5363,15 +5364,69 @@ bad:
 
 
 
+int tcp_read_proto_version(
+    struct tcp_chan *chan,
+    int *proto,
+    int *version)
+  {
+  int rc = DIS_SUCCESS;
+  time_t tmpT;
 
+  tmpT = pbs_tcp_timeout;
+
+  pbs_tcp_timeout = 0;
+
+  *proto = disrsi(chan, &rc);
+
+  if (tmpT > 0)
+    {
+    /* restore */
+    pbs_tcp_timeout = tmpT;
+    }
+  else
+    {
+    /* initialize */
+    pbs_tcp_timeout = PMOMTCPTIMEOUT;
+    }
+
+  switch (rc)
+    {
+    case DIS_SUCCESS:  /* worked */
+      break;
+
+    case DIS_EOF:   /* closed */
+    case DIS_EOD:   /* still open */
+      break;
+
+    default:
+      sprintf(log_buffer, "no protocol number: %s (errno = %d)",
+          dis_emsg[rc], errno);
+      log_err(rc, __func__, log_buffer);
+      break;
+    }  /* END switch (rc) */
+  if (rc == PBSE_NONE)
+    {
+    *version = disrsi(chan, &rc);
+    if (rc != DIS_SUCCESS)
+      {
+      sprintf(log_buffer, "no protocol version number %s (errno %d)",
+          dis_emsg[rc], errno);
+      log_err(rc, __func__, log_buffer);
+      }
+    }
+
+  return rc;
+
+  }
 
 int do_tcp(
     int socket)
   {
   int rc = PBSE_NONE;
-  int proto, version;
+  int proto = -1;
+  int version = -1;
   struct tcp_chan *chan = NULL;
-  time_t tmpT;
+  extern struct connection svr_conn[];
 
   if ((chan = DIS_tcp_setup(socket)) == NULL)
     {
@@ -5380,59 +5435,8 @@ int do_tcp(
     return PBSE_MEM_MALLOC;
     }
 
-
-  tmpT = pbs_tcp_timeout;
-
-  pbs_tcp_timeout = 0;
-
-  proto = disrsi(chan, &rc);
-
-  if (tmpT > 0)
-    {
-    /* restore */
-
-    pbs_tcp_timeout = tmpT;
-    }
-  else
-    {
-    /* initialize */
-
-    pbs_tcp_timeout = PMOMTCPTIMEOUT;
-    }
-
-  switch (rc)
-    {
-    case DIS_SUCCESS:  /* worked */
-
-      break;
-
-    case DIS_EOF:   /* closed */
-    case DIS_EOD:   /* still open */
-      DIS_tcp_cleanup(chan);
-      return rc;
-      /*NOTREACHED*/
-      break;
-
-    default:
-
-      sprintf(log_buffer, "no protocol number: %s",
-              dis_emsg[rc]);
-
-      goto do_tcp_cleanup;
-
-      /*NOTREACHED*/
-
-      break;
-    }  /* END switch (rc) */
-
-  version = disrsi(chan, &rc);
-
-  if (rc != DIS_SUCCESS)
-    {
-    DBPRT(("%s: no protocol version number %s\n", __func__, dis_emsg[rc]))
-
+  if ((rc = tcp_read_proto_version(chan, &proto, &version)) != DIS_SUCCESS)
     goto do_tcp_cleanup;
-    }
 
   switch (proto)
     {
@@ -5468,8 +5472,13 @@ int do_tcp(
     case TM_PROTOCOL:
 
       DBPRT(("%s: got an internal task manager request\n", __func__))
-
+      svr_conn[chan->sock].is_tm = 1;
       rc = tm_request(chan, version);
+      while ((rc == PBSE_NONE) && (tcp_chan_has_data(chan) == TRUE))
+        {
+        if ((rc = tcp_read_proto_version(chan,&proto,&version)) == DIS_SUCCESS)
+          rc = tm_request(chan, version);
+        }
 
       break;
 
@@ -5534,9 +5543,15 @@ void *tcp_request(
   char  address[80];
   char *tmp;
   int rc = PBSE_NONE;
+  int avail_bytes = -1;
+  int socket = *(int *)new_sock;
 
   extern struct connection svr_conn[];
-  int socket = *(int *)new_sock;
+  if ((avail_bytes = socket_avail_bytes_on_descriptor(socket)) == 0)
+    {
+    close_conn(socket, FALSE);
+    return NULL;
+    }
 
   ipadd = svr_conn[socket].cn_addr;
 
@@ -5574,11 +5589,13 @@ void *tcp_request(
         continue;
         break;
 
-      case PBSE_MEM_MALLOC:
       case DIS_EOF:
+        DBPRT(("Closing socket %d twice...\n", socket))
+      case PBSE_MEM_MALLOC:
       case DIS_EOD:
       case DIS_INVALID:
-        close_conn(socket, FALSE);
+        if (svr_conn[socket].is_tm != 1)
+          close_conn(socket, FALSE);
         break;
 
       default:
@@ -5590,9 +5607,7 @@ void *tcp_request(
       break;
     }  /* END for (c = 0) */
 
-  DBPRT(("%s: processed %d\n",
-         __func__,
-         c))
+  DBPRT(("%s:(exit socket %d) processed %d\n", __func__, socket, c))
 
   return NULL;
   }  /* END tcp_request() */

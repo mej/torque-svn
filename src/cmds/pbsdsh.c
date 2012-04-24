@@ -23,8 +23,10 @@
 
 #include "tm.h"
 #include "mcom.h"
+#include "../lib/Libifl/lib_ifl.h" /* DIS_tcp_setup, DIS_tcp_cleanup */
 
 extern int *tm_conn;
+extern int event_count;
 
 #ifndef PBS_MAXNODENAME
 #define PBS_MAXNODENAME 80
@@ -326,7 +328,7 @@ getstdout(void)
  * b. the task to terminate and return the obit with the exit status
  */
 
-void wait_for_task(
+int wait_for_task(
 
   int *nspawned) /* number of tasks spawned */
 
@@ -336,6 +338,9 @@ void wait_for_task(
   int     nobits = 0;
   int     rc;
   int     tm_errno;
+  struct tcp_chan *chan = NULL;
+  if ((chan = DIS_tcp_setup(*tm_conn)) == NULL)
+      return 1;
 
   while (*nspawned || nobits)
     {
@@ -370,7 +375,7 @@ void wait_for_task(
 
     sigprocmask(SIG_UNBLOCK, &allsigs, NULL);
 
-    rc = tm_poll(TM_NULL_EVENT, &eventpolled, !grabstdio, &tm_errno);
+    rc = tm_poll(chan, TM_NULL_EVENT, &eventpolled, !grabstdio, &tm_errno);
 
     sigprocmask(SIG_BLOCK, &allsigs, NULL);
 
@@ -484,8 +489,9 @@ void wait_for_task(
         }
       }
     }
+  DIS_tcp_cleanup(chan);
 
-  return;
+  return PBSE_NONE;
   }  /* END wait_for_task() */
 
 
@@ -505,6 +511,7 @@ char *gethostnames(
   tm_event_t resultevent;
   char *hoststart;
   int rc, tm_errno, i, j;
+  struct tcp_chan *chan = NULL;
 
   allnodes = calloc(numnodes, PBS_MAXNODENAME + 1 + sizeof(char));
   rescinfo = calloc(numnodes, RESCSTRLEN + 1 + sizeof(char));
@@ -539,9 +546,14 @@ char *gethostnames(
 
   /* read back resource requests */
 
+  if ((chan = DIS_tcp_setup(*tm_conn)) == NULL)
+    {
+    exit(1);
+    }
+
   for (j = 0, i = 0; i < numnodes; i++)
     {
-    rc = tm_poll(TM_NULL_EVENT, &resultevent, 1, &tm_errno);
+    rc = tm_poll(chan, TM_NULL_EVENT, &resultevent, 1, &tm_errno);
 
     if ((rc != TM_SUCCESS) || (tm_errno != TM_SUCCESS))
       {
@@ -583,6 +595,7 @@ char *gethostnames(
 
     strcpy(allnodes + (j*PBS_MAXNODENAME), hoststart);
     }
+  DIS_tcp_cleanup(chan);
 
   free(rescinfo);
 
@@ -724,7 +737,7 @@ int main(
     return(1);
     }
 
-  sprintf(id, "pbsdsh%s",
+  sprintf(id, "pbsdsh(%s)",
           ((getenv("PBSDEBUG") != NULL) && (getenv("PBS_TASKNUM") != NULL))
           ? getenv("PBS_TASKNUM")
           : "");
@@ -1050,14 +1063,14 @@ int main(
       ++nspawned;
 
       if (sync)
-        wait_for_task(&nspawned); /* one at a time */
+        rc = wait_for_task(&nspawned); /* one at a time */
       }
-
     }    /* END for (c) */
 
   if (sync == 0)
-    wait_for_task(&nspawned); /* wait for all to finish */
-
+    rc = wait_for_task(&nspawned); /* wait for all to finish */
+  if (rc != 0)
+    return rc;
 
   /*
    * Terminate interface with Task Manager

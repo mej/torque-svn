@@ -640,6 +640,21 @@ int tcp_wcommit(
   }
 
 
+
+int tcp_chan_has_data(
+    struct tcp_chan *chan)
+  {
+  int rc = FALSE;
+  struct tcpdisbuf *tp;
+  tp = &chan->readbuf;
+
+  if (tp->tdis_eod != tp->tdis_leadp)
+    rc = TRUE;
+  return rc;
+  }
+
+
+
 /*
  * DIS_tcp_setup - setup supports routines for dis, "data is strings", to
  * use tcp stream I/O.  Also initializes an array of pointers to
@@ -719,4 +734,5 @@ void DIS_tcp_close(struct tcp_chan *chan)
   if (sock != -1)
     close(sock);
   }
+
 /* END tcp_dis.c */

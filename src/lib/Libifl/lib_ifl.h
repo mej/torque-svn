@@ -470,5 +470,5 @@ int tm_dealloc(tm_node_id node, tm_event_t *event);
 int tm_create_event(tm_event_t *event);
 int tm_destroy_event(tm_event_t *event);
 int tm_register(tm_whattodo_t *what, tm_event_t *event);
-int tm_poll(tm_event_t poll_event, tm_event_t *result_event, int wait, int *tm_errno);
+int tm_poll(struct tcp_chan *chan, tm_event_t poll_event, tm_event_t *result_event, int wait, int *tm_errno);
 int tm_adopt(char *id, int adoptCmd, pid_t pid);

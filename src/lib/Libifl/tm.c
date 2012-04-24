@@ -107,6 +107,7 @@
 #include "tm.h"
 #include "net_connect.h"
 #include "pbs_ifl.h"
+#include "../Liblog/pbs_log.h" /* print_trace */
 
 
 /*
@@ -143,6 +144,7 @@ static int  tm_momport = 0;
 static int  local_conn = -1;
 static int  init_done = 0;
 int *tm_conn = &local_conn;
+int  event_count = 0;
 
 /*
 ** Events are the central focus of this library.  They are tracked
@@ -165,7 +167,6 @@ typedef struct event_info
   } event_info;
 
 static event_info *event_hash[EVENT_HASH];
-static int  event_count = 0;
 
 /*
 ** Find an event number or return a NULL.
@@ -703,8 +704,25 @@ int tm_init(
 
   add_event(nevent, TM_ERROR_NODE, TM_INIT, (void *)roots);
 
-  if ((err = tm_poll(TM_NULL_EVENT, &revent, 1, &nerr)) != TM_SUCCESS)
-    return err;
+  if ((chan = DIS_tcp_setup(local_conn)) == NULL)
+    {
+    DBPRT(("%s: Error allocating memory for sock buffer %d", __func__, PBSE_MEM_MALLOC))
+      return TM_BADINIT;
+    }
+
+  while (TRUE)
+    {
+    if ((err = tm_poll(chan, TM_NULL_EVENT, &revent, 1, &nerr)) != TM_SUCCESS)
+      {
+      DIS_tcp_cleanup(chan);
+      return err;
+      }
+    if (tcp_chan_has_data(chan) == FALSE)
+      {
+      DIS_tcp_cleanup(chan);
+      break;
+      }
+    }
 
   return nerr;
   }
@@ -1378,11 +1396,11 @@ tm_register(tm_whattodo_t *what, tm_event_t *event)
 */
 
 int tm_poll(
-
-  tm_event_t poll_event,
-  tm_event_t *result_event,
-  int  wait,
-  int  *tm_errno)
+    struct tcp_chan *chan,
+    tm_event_t poll_event,
+    tm_event_t *result_event,
+    int  wait,
+    int  *tm_errno)
 
   {
   DOID("tm_poll")
@@ -1406,7 +1424,6 @@ int tm_poll(
 
   struct reschold *rhold;
   extern time_t pbs_tcp_timeout;
-  struct tcp_chan *chan = NULL;
 
   if (!init_done)
     {
@@ -1434,8 +1451,8 @@ int tm_poll(
 
   if (local_conn < 0)
     {
-    DBPRT(("%s: INTERNAL ERROR %d events but no connection\n",
-           id, event_count))
+    DBPRT(("%s: INTERNAL ERROR %d events but no connection (%d)\n",
+           id, event_count, local_conn))
 
     return(TM_ENOTCONNECTED);
     }
@@ -1445,12 +1462,6 @@ int tm_poll(
   ** the value of wait the user set.
   */
   pbs_tcp_timeout = wait ? FOREVER : 0;
-
-  if ((chan = DIS_tcp_setup(local_conn)) == NULL)
-    {
-    DBPRT(("%s: Error allocating memory for sock buffer %d", __func__, PBSE_MEM_MALLOC))
-    goto err;
-    }
 
   prot = disrsi(chan, &ret);
 
@@ -1523,7 +1534,7 @@ int tm_poll(
     {
     *tm_errno = disrsi(chan, &ret);
     DBPRT(("%s: event %d error %d\n", id, nevent, *tm_errno));
-    goto done;
+    goto tm_poll_done;
     }
 
   *tm_errno = TM_SUCCESS;
@@ -1714,7 +1725,7 @@ int tm_poll(
     }
 
   DIS_tcp_wflush(chan);
-done:
+tm_poll_done:
 
   del_event(ep);
   return TM_SUCCESS;
@@ -1724,10 +1735,7 @@ err:
   if (ep)
     del_event(ep);
 
-  if (chan != NULL)
-    DIS_tcp_close(chan);
-  else
-    close(local_conn);
+  close(local_conn);
 
   local_conn = -1;
 
