@@ -205,7 +205,7 @@ char *pbs_get_server_list(void)
       if (fgets(tmp, sizeof(tmp), fd) == NULL)
         {
         fclose(fd);
-
+        fprintf(stderr, "\n%s: server_name file\n(%s)\nis EMPTY!!!\n\n", __func__, pbs_destn_file);
         return(server_list);
         }
 
