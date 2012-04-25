@@ -509,7 +509,7 @@ job *job_alloc(void)
  * job_free - free job structure and its various sub-structures
  */
 
-void job_free(
+void mom_job_free(
 
   job *pj)  /* I (modified) */
 
@@ -852,7 +852,7 @@ void job_purge(
 
 #endif   /* IBM SP */
 
-  job_free(pjob);
+  mom_job_free(pjob);
 
   /* if no jobs are left, check if MOM should be restarted */
 
