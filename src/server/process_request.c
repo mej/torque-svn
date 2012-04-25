@@ -95,6 +95,7 @@
 #include <pthread.h>
 
 #include "libpbs.h"
+#include "../lib/Libifl/lib_ifl.h" /* netaddr_long */
 #include "pbs_error.h"
 #include "server_limits.h"
 #include "pbs_nodes.h"
@@ -143,7 +144,6 @@
 #include "req_register.h" /* req_register, req_registerarray */
 #include "job_func.h" /* job_purge */
 #include "tcp.h" /* tcp_chan */
-
 
 /*
  * process_request - this function gets, checks, and invokes the proper
@@ -351,8 +351,7 @@ int process_request(
   /*
    * Read in the request and decode it to the internal request structure.
    */
-
-  if (conn_active == FromClientDIS)
+  if (conn_active == FromClientDIS || conn_active == ToServerDIS)
     {
 #ifdef ENABLE_UNIX_SOCKETS
 
@@ -368,11 +367,16 @@ int process_request(
     }
   else
     {
+    char out[80];
+
+    snprintf(tmpLine, MAXLINE, "request on invalid type of connection: %d, sock type: %d, from address %s", 
+                conn_active,conn_socktype, netaddr_long(conn_addr, out));
     log_event(PBSEVENT_SYSTEM, PBS_EVENTCLASS_REQUEST,
-      "process_req", "request on invalid type of connection");
+      "process_req", tmpLine);
     snprintf(tmpLine, sizeof(tmpLine),
-        "request on invalid type of connection from%lu",
-        conn_addr);
+        "request on invalid type of connection (%d) from %s",
+        conn_active,
+        netaddr_long(conn_addr, out));
     req_reject(PBSE_BADHOST, 0, request, NULL, tmpLine);
     free_request = FALSE;
     rc = PBSE_BADHOST;

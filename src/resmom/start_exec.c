@@ -6858,6 +6858,7 @@ int open_std_file(
   int   keeping;  /* boolean:  1=TRUE, 0=FALSE */
   char *path;
   int   old_umask = 0;
+  char  local_buf[LOCAL_LOG_BUF_SIZE + 1];
 
   int  changed_to_user = FALSE;
   int  rc;
@@ -6957,7 +6958,8 @@ int open_std_file(
         {
         if (statbuf.st_uid != pjob->ji_qs.ji_un.ji_momt.ji_exuid)
           {
-          log_err(-1, __func__, "std file exists with the wrong owner, someone is doing something fishy");
+          snprintf(local_buf, LOCAL_LOG_BUF_SIZE,"std file exists with the wrong owner, userid: %d owner: %d. someone is doing something fishy", pjob->ji_qs.ji_un.ji_momt.ji_exuid, statbuf.st_uid);
+          log_err(-1, __func__, local_buf);
 
           goto reset_ids_fail;
           }
