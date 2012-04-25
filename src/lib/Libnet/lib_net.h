@@ -70,7 +70,7 @@ fd_set *global_sock_getlist();
 int global_sock_verify();
 void netcounter_incr(void);
 int get_num_connections();
-int *netcounter_get(void);
+void netcounter_get(int netrates[]);
 int init_network(unsigned int port, void *(*readfunc)(void *));
 int thread_func(int active_sockets, fd_set *select_set);
 int wait_request(time_t waittime, long *SState); 

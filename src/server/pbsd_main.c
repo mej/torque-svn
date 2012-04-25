@@ -472,6 +472,7 @@ void *start_process_pbs_server_port(void *new_sock)
   free(new_sock);
   while (rc == PBSE_NONE)
     {
+    netcounter_incr();
     rc = process_pbs_server_port(sock);
     }
   close_conn(sock, FALSE);

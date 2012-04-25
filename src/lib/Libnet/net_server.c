@@ -154,7 +154,6 @@ pthread_mutex_t *global_sock_read_mutex = NULL;
 
 void *(*read_func[2])(void *);
 
-pthread_mutex_t *netrates_mutex = NULL;
 pthread_mutex_t *nc_list_mutex  = NULL;
 
 pbs_net_t        pbs_server_addr;
@@ -170,12 +169,12 @@ void netcounter_incr(void)
 
   {
   time_t now, lastmin;
-  int i;
+  int time_diff = 0;
 
-  now = time(NULL);
-  lastmin = now - 60;
 
   pthread_mutex_lock(nc_list_mutex);
+  now = time(NULL);
+  lastmin = now - 60;
 
   if (nc_list[0].time == now)
     {
@@ -183,21 +182,21 @@ void netcounter_incr(void)
     }
   else
     {
-    memmove(&nc_list[1], &nc_list[0], sizeof(struct netcounter)*59);
-
-    nc_list[0].time = now;
-    nc_list[0].counter = 1;
-
-    for (i = 0;i < 60;i++)
+    time_diff = (int)(now - nc_list[0].time);
+    if (time_diff > 60)
       {
-      if (nc_list[i].time < lastmin)
-        {
-        nc_list[i].time = 0;
-        nc_list[i].counter = 0;
-        }
+      memset(&nc_list, 0, sizeof(nc_list));
+      nc_list[0].time = now;
+      nc_list[0].counter = 1;
+      }
+    else
+      {
+      memmove(&nc_list[time_diff], &nc_list[0], sizeof(struct netcounter)*(60-time_diff));
+      memset(&nc_list[0], 0, sizeof(struct netcounter)*time_diff);
+      nc_list[0].time = now;
+      nc_list[0].counter = 1;
       }
     }
-
   pthread_mutex_unlock(nc_list_mutex);
   }
 
@@ -214,20 +213,12 @@ int get_num_connections()
   }
 
 
-int *netcounter_get(void)
+void netcounter_get(int netrates[])
 
   {
-  static int netrates[3];
   int netsums[3] = {0, 0, 0};
   int i;
 
-  if (netrates_mutex == NULL)
-    {
-    netrates_mutex = calloc(1, sizeof(pthread_mutex_t));
-    pthread_mutex_init(netrates_mutex,NULL);
-    }
-
-  pthread_mutex_lock(netrates_mutex);
   pthread_mutex_lock(nc_list_mutex);
 
   for (i = 0;i < 5;i++)
@@ -262,8 +253,6 @@ int *netcounter_get(void)
     netrates[1] = 0;
     netrates[2] = 0;
     }
-
-  return netrates;
   }
 
 /**
@@ -447,13 +436,8 @@ int init_network(
     pthread_mutex_init(nc_list_mutex,NULL);
 
     pthread_mutex_lock(nc_list_mutex);
-
-    for (i = 0;i < 60;i++)
-      {
-      nc_list[i].time = 0;
-      nc_list[i].counter = 0;
-      }
-
+    memset(nc_list, 0, sizeof(nc_list));
+    nc_list[0].time = time(NULL);
     pthread_mutex_unlock(nc_list_mutex);
     }
 

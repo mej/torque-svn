@@ -1622,10 +1622,12 @@ int req_stat_svr(
   struct batch_reply   *preply;
 
   struct brp_status    *pstat;
-  int                  *nc;
   int                   bad = 0;
   char                  nc_buf[128];
   int                   numjobs;
+  int                   netrates[3];
+
+  memset(netrates, 0, sizeof(netrates));
 
   /* update count and state counts from sv_numjobs and sv_jobstates */
   pthread_mutex_lock(server.sv_qs_mutex);
@@ -1645,10 +1647,8 @@ int req_stat_svr(
   
   pthread_mutex_unlock(server.sv_jobstates_mutex);
 
-  nc = netcounter_get(); /* locks netrates mutex */
-  snprintf(nc_buf, 127, "%d %d %d", *nc, *(nc + 1), *(nc + 2));
-  
-  pthread_mutex_unlock(netrates_mutex);
+  netcounter_get(netrates); /* locks netrates mutex */
+  snprintf(nc_buf, 127, "%d %d %d", netrates[0], netrates[1], netrates[2]);
 
   if (server.sv_attr[SRV_ATR_NetCounter].at_val.at_str != NULL)
     free(server.sv_attr[SRV_ATR_NetCounter].at_val.at_str);

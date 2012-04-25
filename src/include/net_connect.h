@@ -230,7 +230,7 @@ struct netcounter
   int     counter;
   };
 
-int *netcounter_get();
+void netcounter_get(int netrates[]);
 #define MAXLISTENERS  3
 
 typedef struct listener_connection
