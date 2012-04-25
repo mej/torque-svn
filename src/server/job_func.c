@@ -677,7 +677,8 @@ job *job_alloc(void)
 
 void job_free(
 
-  job *pj)  /* I (modified) */
+  job *pj,
+  int use_recycle)  /* I (modified) */
 
   {
   int               i;
@@ -717,9 +718,19 @@ void job_free(
    * the lock and then deletes the job, but thread 2 gets the job's lock as
    * the job is freed, causing segfaults. We use the recycler and the 
    * ji_being_recycled flag to solve this problem --dbeer */
-  insert_into_recycler(pj);
+  if (use_recycle)
+    {
+    insert_into_recycler(pj);
+    pthread_mutex_unlock(pj->ji_mutex);
+    }
+  else
+    {
+    pthread_mutex_unlock(pj->ji_mutex);
+    free(pj->ji_mutex);
+    memset(pj, 254, sizeof(job));
+    free(pj);
+    }
 
-  pthread_mutex_unlock(pj->ji_mutex);
 
   return;
   }  /* END job_free() */
@@ -792,7 +803,7 @@ job *job_clone(
   if ((oldid = strdup(template_job->ji_qs.ji_jobid)) == NULL)
     {
     log_err(ENOMEM, __func__, "no memory");
-    job_free(pnewjob);
+    job_free(pnewjob, FALSE);
 
     return(NULL);
     }
@@ -844,7 +855,7 @@ job *job_clone(
             /* FAILURE */
 
             log_err(errno, __func__, "job file is corrupt");
-            job_free(pnewjob);
+            job_free(pnewjob, FALSE);
 
             return(NULL);
             }
@@ -857,7 +868,7 @@ job *job_clone(
         /* FAILURE */
 
         log_err(errno, __func__, "cannot create job file");
-        job_free(pnewjob);
+        job_free(pnewjob, FALSE);
 
         return(NULL);
         }
@@ -953,7 +964,7 @@ job *job_clone(
     pa = get_array(template_job->ji_qs.ji_jobid);
     if (pa == NULL)
       {
-      job_free(pnewjob);
+      job_free(pnewjob, FALSE);
       return(NULL);
       }
     }
@@ -1564,16 +1575,24 @@ int job_purge(
   job *pjob)  /* I (modified) */
 
   {
-  static char   id[] = "job_purge";
-
+  int           rc = PBSE_NONE;
   char          log_buf[LOCAL_LOG_BUF_SIZE];
   char          namebuf[MAXPATHLEN + 1];
   extern char  *msg_err_purgejob;
   time_t        time_now = time(NULL);
   long          record_job_info = FALSE;
   char          job_id[PBS_MAXSVRJOBID+1];
+  char          job_fileprefix[PBS_JOBBASE+1];
+  int           job_substate;
+  int           job_is_array_template;
+  unsigned int  job_has_checkpoint_file;
 
   strcpy(job_id, pjob->ji_qs.ji_jobid);
+  strcpy(job_fileprefix, pjob->ji_qs.ji_fileprefix);
+  job_substate = pjob->ji_qs.ji_substate;
+  job_is_array_template = pjob->ji_is_array_template
+                        || ((pjob->ji_arraystruct != NULL)?1:0);
+  job_has_checkpoint_file = pjob->ji_wattr[JOB_ATR_checkpoint_name].at_flags;
   /* check to see if we are keeping a log of all jobs completed */
   get_svr_attr_l(SRV_ATR_RecordJobInfo, &record_job_info);
   if (record_job_info)
@@ -1589,19 +1608,12 @@ int job_purge(
       }
     }
     
-
-  if ((pjob->ji_qs.ji_substate != JOB_SUBSTATE_TRANSIN) &&
-      (pjob->ji_qs.ji_substate != JOB_SUBSTATE_TRANSICM))
-    {
-    pthread_mutex_unlock(pjob->ji_mutex);
-    svr_dequejob(job_id, FALSE);
-    if ((pjob = find_job(job_id)) == NULL)
-      return PBSE_UNKJOBID;
-    }
+  if (job_is_array_template == TRUE)
+    remove_job(&array_summary,pjob);
 
   /* if part of job array then remove from array's job list */
   if ((pjob->ji_arraystruct) != NULL &&
-      (pjob->ji_is_array_template == FALSE))
+      (job_is_array_template == FALSE))
     {
     /* pa->ai_mutex will come out locked after 
        the call to get_jobs_array */
@@ -1628,8 +1640,8 @@ int job_purge(
         pthread_mutex_unlock(pa->ai_mutex);
         if (LOGLEVEL >=7)
           {
-          sprintf(log_buf, "unlocked ai_mutex: %s", id);
-          log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pjob->ji_qs.ji_jobid, log_buf);
+          sprintf(log_buf, "unlocked ai_mutex: %s", __func__);
+          log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, job_id, log_buf);
           }
         }
       }
@@ -1637,106 +1649,120 @@ int job_purge(
       return PBSE_JOBNOTFOUND;
     }
 
-  if ((pjob->ji_is_array_template == TRUE) ||
-      (pjob->ji_arraystruct == NULL))
-    remove_job(&array_summary,pjob);
+  if ((job_substate != JOB_SUBSTATE_TRANSIN) &&
+      (job_substate != JOB_SUBSTATE_TRANSICM))
+    {
+    pthread_mutex_unlock(pjob->ji_mutex);
+    rc = svr_dequejob(job_id, FALSE);
+    if (rc != PBSE_JOBNOTFOUND)
+      {
+      pthread_mutex_lock(pjob->ji_mutex);
+      job_free(pjob, TRUE);
+      }
+    }
+  else
+    {
+    job_free(pjob, TRUE);
+    }
+
+  /* remove checkpoint restart file if there is one */
+  /* MUTSU - The following functions, updates a flag, saves the job and returns.
+   * As we are deleting the job (and file we are saving) anyway, this is 
+   * superfluous
+   */
+/*  if (pjob->ji_wattr[JOB_ATR_restart_name].at_flags & ATR_VFLAG_SET)
+    {
+    cleanup_restart_file(pjob);
+    }
+    */
 
   /* delete the script file */
-  if ((pjob->ji_arraystruct == NULL) ||
-      (pjob->ji_is_array_template == TRUE))
+  if (job_is_array_template == TRUE)
     {
     /* delete script file */        
-    snprintf(namebuf, sizeof(namebuf), "%s%s%s", path_jobs, pjob->ji_qs.ji_fileprefix, JOB_SCRIPT_SUFFIX);
+    snprintf(namebuf, sizeof(namebuf), "%s%s%s", path_jobs, job_fileprefix, JOB_SCRIPT_SUFFIX);
 
     if (unlink(namebuf) < 0)
       {
       if (errno != ENOENT)
-        log_err(errno, id, msg_err_purgejob);
+        log_err(errno, __func__, msg_err_purgejob);
       }
     else if (LOGLEVEL >= 6)
       {
       sprintf(log_buf, "removed job script");
 
-      log_record(PBSEVENT_DEBUG,PBS_EVENTCLASS_JOB,pjob->ji_qs.ji_jobid,log_buf);
+      log_record(PBSEVENT_DEBUG,PBS_EVENTCLASS_JOB,job_id,log_buf);
       }
     }
 
   /* delete any spooled stdout */
-  snprintf(namebuf, sizeof(namebuf), "%s%s%s", path_jobs, pjob->ji_qs.ji_fileprefix, JOB_STDOUT_SUFFIX);
+  snprintf(namebuf, sizeof(namebuf), "%s%s%s", path_jobs, job_fileprefix, JOB_STDOUT_SUFFIX);
 
   if (unlink(namebuf) < 0)
     {
     if (errno != ENOENT)
-      log_err(errno, id, msg_err_purgejob);
+      log_err(errno, __func__, msg_err_purgejob);
     }
   else if (LOGLEVEL >= 6)
     {
     sprintf(log_buf, "removed job stdout");
 
-    log_record(PBSEVENT_DEBUG,PBS_EVENTCLASS_JOB,pjob->ji_qs.ji_jobid,log_buf);
+    log_record(PBSEVENT_DEBUG,PBS_EVENTCLASS_JOB,job_id,log_buf);
     }
 
   /* delete any spooled stderr */
-  snprintf(namebuf, sizeof(namebuf), "%s%s%s", path_jobs, pjob->ji_qs.ji_fileprefix, JOB_STDERR_SUFFIX);
+  snprintf(namebuf, sizeof(namebuf), "%s%s%s", path_jobs, job_fileprefix, JOB_STDERR_SUFFIX);
 
   if (unlink(namebuf) < 0)
     {
     if (errno != ENOENT)
-      log_err(errno, id, msg_err_purgejob);
+      log_err(errno, __func__, msg_err_purgejob);
     }
   else if (LOGLEVEL >= 6)
     {
     sprintf(log_buf, "removed job stderr");
 
-    log_record(PBSEVENT_DEBUG,PBS_EVENTCLASS_JOB,pjob->ji_qs.ji_jobid,log_buf);
-    }
-
-  /* remove checkpoint restart file if there is one */
-  if (pjob->ji_wattr[JOB_ATR_restart_name].at_flags & ATR_VFLAG_SET)
-    {
-    cleanup_restart_file(pjob);
+    log_record(PBSEVENT_DEBUG,PBS_EVENTCLASS_JOB,job_id,log_buf);
     }
 
   /* delete checkpoint file directory if there is one */
-  if (pjob->ji_wattr[JOB_ATR_checkpoint_name].at_flags & ATR_VFLAG_SET)
+  if (job_has_checkpoint_file & ATR_VFLAG_SET)
     {
-    snprintf(namebuf, sizeof(namebuf), "%s%s%s", path_checkpoint, pjob->ji_qs.ji_fileprefix, JOB_CHECKPOINT_SUFFIX);
+    snprintf(namebuf, sizeof(namebuf), "%s%s%s", path_checkpoint, job_fileprefix, JOB_CHECKPOINT_SUFFIX);
 
     if (remtree(namebuf) < 0)
       {
       if (errno != ENOENT)
-        log_err(errno, id, msg_err_purgejob);
+        log_err(errno, __func__, msg_err_purgejob);
       }
     else if (LOGLEVEL >= 6)
       {
       sprintf(log_buf, "removed job checkpoint");
 
-      log_record(PBSEVENT_DEBUG,PBS_EVENTCLASS_JOB,pjob->ji_qs.ji_jobid,log_buf);
+      log_record(PBSEVENT_DEBUG,PBS_EVENTCLASS_JOB,job_id,log_buf);
       }
     }
 
-  if (pjob->ji_is_array_template == TRUE)
+  if (job_is_array_template == TRUE)
     {
-    snprintf(namebuf, sizeof(namebuf), "%s%s%s", path_jobs, pjob->ji_qs.ji_fileprefix, JOB_FILE_TMP_SUFFIX);
+    snprintf(namebuf, sizeof(namebuf), "%s%s%s", path_jobs, job_fileprefix, JOB_FILE_TMP_SUFFIX);
     }
   else
     {
-    snprintf(namebuf, sizeof(namebuf), "%s%s%s", path_jobs, pjob->ji_qs.ji_fileprefix, JOB_FILE_SUFFIX);
+    snprintf(namebuf, sizeof(namebuf), "%s%s%s", path_jobs, job_fileprefix, JOB_FILE_SUFFIX);
     }
 
   if (unlink(namebuf) < 0)
     {
     if (errno != ENOENT)
-      log_err(errno, id, msg_err_purgejob);
+      log_err(errno, __func__, msg_err_purgejob);
     }
   else if (LOGLEVEL >= 6)
     {
     sprintf(log_buf, "removed job file");
 
-    log_record(PBSEVENT_DEBUG,PBS_EVENTCLASS_JOB,pjob->ji_qs.ji_jobid,log_buf);
+    log_record(PBSEVENT_DEBUG,PBS_EVENTCLASS_JOB,job_id,log_buf);
     }
-
-  job_free(pjob);
 
   return PBSE_NONE;
   }  /* END job_purge() */
@@ -1957,34 +1983,32 @@ char *get_correct_jobname(
   return(correct);
   } /* END get_correct_jobname() */
 
-
-
 /*
- * searches the regular job list for the job
+ * Searches the array passed in for the job_id
  */
 
-job *find_job_regular_jobs(
-
-  char *searchable_jobid)
-
+job *find_job_by_array(
+    struct all_jobs *aj,
+    char *job_id,
+    int need_recycled)
   {
   job *pj = NULL;
   int  i;
 
-  pthread_mutex_lock(alljobs.alljobs_mutex);
+  pthread_mutex_lock(aj->alljobs_mutex);
   
-  i = get_value_hash(alljobs.ht, searchable_jobid);
+  i = get_value_hash(aj->ht, job_id);
   
   if (i >= 0)
-    pj = (job *)alljobs.ra->slots[i].item;
+    pj = (job *)aj->ra->slots[i].item;
+  if (pj != NULL)
+    pthread_mutex_lock(pj->ji_mutex);
   
-  pthread_mutex_unlock(alljobs.alljobs_mutex);
+  pthread_mutex_unlock(aj->alljobs_mutex);
   
   if (pj != NULL)
     {
-    pthread_mutex_lock(pj->ji_mutex);
-
-    if (pj->ji_being_recycled == TRUE)
+    if ((pj->ji_being_recycled == TRUE) && (need_recycled == FALSE))
       {
       pthread_mutex_unlock(pj->ji_mutex);
       pj = NULL;
@@ -1992,48 +2016,7 @@ job *find_job_regular_jobs(
     }
 
   return(pj);
-  } /* END find_job_regular_jobs() */
-
-
-
-/* 
- * searches the array list for the job
- */ 
-
-job *find_job_array_jobs(
-
-  char *searchable_jobid)
-
-  {
-  job *pj = NULL;
-  int  i;
-
-  pthread_mutex_lock(array_summary.alljobs_mutex);
-  
-  i = get_value_hash(array_summary.ht, searchable_jobid);
-  
-  if (i >= 0)
-    pj = (job *)array_summary.ra->slots[i].item;
-  
-  pthread_mutex_unlock(array_summary.alljobs_mutex);
-  
-  if (pj != NULL)
-    {
-    pthread_mutex_lock(pj->ji_mutex);
-
-    if (pj->ji_being_recycled == TRUE)
-      {
-      pthread_mutex_unlock(pj->ji_mutex);
-      pj = NULL;
-      }
-    }
-
-  return(pj);
-  } /* END find_job_array_jobs() */
-
-
-
-
+  }
 
 /*
  * find_job() - find job by jobid
@@ -2072,18 +2055,15 @@ job *find_job(
 
   if (strstr(jobid,"[]") == NULL)
     {
-    pj = find_job_regular_jobs(comp);
+    pj = find_job_by_array(&alljobs, comp, FALSE);
+    }
 
-    /* when remotely routing jobs, they are removed from the 
-     * regular job list first and the array summary after. 
-     * Attempt to find them there if NULL */
-    if (pj == NULL)
-      pj = find_job_array_jobs(comp);
-    } /* END if (not an array template job) */
-  else
-    {
-    pj = find_job_array_jobs(comp);
-    } /* END if (job is array template) */
+  /* when remotely routing jobs, they are removed from the 
+   * regular job list first and the array summary after. 
+   * Attempt to find them there if NULL
+   * OR it's an array, try to find the job */
+  if (pj == NULL)
+    pj = find_job_by_array(&array_summary, comp, FALSE);
 
   if (at)
     *at = '@'; /* restore @server_name */

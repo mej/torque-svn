@@ -197,6 +197,7 @@ int req_runjob(
   char                  failhost[MAXLINE];
   char                  emsg[MAXLINE];
   char                  log_buf[LOCAL_LOG_BUF_SIZE + 1];
+  int                   reply_sent = FALSE;
 
   /* chk_job_torun will extract job id and assign hostlist if specified */
 
@@ -229,9 +230,17 @@ int req_runjob(
   if ((preq != NULL) &&
       (preq->rq_type == PBS_BATCH_AsyrunJob))
     {
+    /* This is less than graceful...
+     * Down in reply_ack, if the req is of type
+     * PBS_BATCH_AsyModifyJob && noreply is false, the req is not free'd,
+     * so this is set temporarily to NOT free preq and reassigned to
+     * original settings afterwards
+     */
+    preq->rq_type = PBS_BATCH_AsyModifyJob;
+    preq->rq_noreply = FALSE;
     reply_ack(preq);
-
-    preq = NULL;  /* cleared so we don't try to reuse */
+    preq->rq_type = PBS_BATCH_AsyrunJob;
+    reply_sent = TRUE;
     }
 
   /* if the job is part of an array, check the slot limit */
@@ -242,8 +251,11 @@ int req_runjob(
 
     if (pjob == NULL)
       {
-      rc = PBSE_JOBNOTFOUND;
-      req_reject(rc, 0, preq, NULL, "Job unexpectedly deleted");
+      if (reply_sent == FALSE)
+        {
+        rc = PBSE_JOBNOTFOUND;
+        req_reject(rc, 0, preq, NULL, "Job unexpectedly deleted");
+        }
       return(rc);
       }
     
@@ -259,7 +271,7 @@ int req_runjob(
         pa->ai_qs.slot_limit,
         pa->ai_qs.jobs_running);
       
-      if (preq != NULL)
+      if (reply_sent == FALSE)
         req_reject(PBSE_IVALREQ,0,preq,NULL,log_buf);
       
       if (LOGLEVEL >= 7)
@@ -1417,7 +1429,10 @@ static job *chk_job_torun(
     unlock_queue(pque, __func__, NULL, LOGLEVEL);
     }
   else if (pjob == NULL)
+    {
+    req_reject(PBSE_JOBNOTFOUND, 0, preq, NULL, "job vanished while trying to lock queue.");
     return(NULL);
+    }
 
   /* where to execute the job */
 #ifdef ENABLE_BLCR

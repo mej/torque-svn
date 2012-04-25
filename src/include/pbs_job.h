@@ -1059,7 +1059,6 @@ extern int   job_unlink_file(job *pjob, const char *name);
 #ifndef PBS_MOM
 extern job  *job_clone(job *,struct job_array *, int);
 #endif
-extern void  job_free(job *);
 extern job  *job_recov(char *);
 extern int   job_save(job *, int, int);
 extern int   modify_job_attr(job *, svrattrl *, int, int *);
