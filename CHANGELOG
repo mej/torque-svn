@@ -45,6 +45,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   b - Fix so epilogue.precancel runs only once and only for cancelled jobs. TRQ-831.
   b - fix a mom hiearchy error for running the moms on non-default ports
   b - Fix server segfault for where mom in nodes file is not in mom_hierarchy. TRQ-873.
+  b - routing to a routing queue now works again, TRQ-905, bugzilla 186
 
 4.0.0
   e - make a threadpool for TORQUE server. The number of threads is 
