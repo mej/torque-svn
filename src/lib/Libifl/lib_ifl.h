@@ -383,6 +383,7 @@ void blog_init(char *s, int len);
 int blog_write(char *s);
 void blog_out(char *filename);
 /* static int next_seq(int *seq); */
+char * netaddr_long(long ap, char *out);
 char * netaddr(struct sockaddr_in *ap);
 void set_rpp_throttle_sleep_time(long sleep_time);
 /* static void rpp_form_pkt(int index, int type, int seq, u_char *buf, int len); */
