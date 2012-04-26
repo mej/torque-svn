@@ -761,7 +761,7 @@ int get_addr_info(char *name, struct sockaddr_in *sa_info, int retry)
     {
     gettimeofday(&start_time, 0);
     snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "%s call #%d", name, cntr);
-    log_record(PBSEVENT_SYSTEM, PBS_EVENTCLASS_REQUEST, __func__, log_buf);
+    /*log_record(PBSEVENT_SYSTEM, PBS_EVENTCLASS_REQUEST, __func__, log_buf);*/
 
     if ((rc = getaddrinfo(name, NULL, &hints, &addr_info)) != 0)
       {
@@ -770,12 +770,12 @@ int get_addr_info(char *name, struct sockaddr_in *sa_info, int retry)
           "Can't get address information for [%s] - (%d-%s) [retry %d]time{%d}",
           name, rc, gai_strerror(rc), cntr, (int)(end_time.tv_sec-start_time.tv_sec));
       rc = PBSE_BADHOST;
-      log_err(rc, __func__, log_buf);
+      /*log_err(rc, __func__, log_buf);*/
       }
     else
       {
       sa_info->sin_addr = ((struct sockaddr_in *)addr_info->ai_addr)->sin_addr;
-      sa_info->sin_family = AF_INET;
+      sa_info->sin_family = addr_info->ai_family;
       freeaddrinfo(addr_info);
       gettimeofday(&end_time, 0);
 /*      snprintf(log_buf, LOCAL_LOG_BUF_SIZE,

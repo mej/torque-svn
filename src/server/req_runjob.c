@@ -1177,7 +1177,7 @@ void finish_sendmom(
 
   if (LOGLEVEL >= 6)
     {
-    log_record(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,job_id,"entering post_sendmom");
+    log_record(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,job_id,"entering finish_sendmom");
     }
 
   if (LOGLEVEL >= 1)
