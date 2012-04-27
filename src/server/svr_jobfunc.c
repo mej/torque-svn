@@ -544,7 +544,6 @@ int svr_enquejob(
     
     unlock_queue(pque, __func__, "route job", LOGLEVEL);
     }
-  pthread_mutex_unlock(pjob->ji_mutex);
 
   return(PBSE_NONE);
   }  /* END svr_enquejob() */

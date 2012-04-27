@@ -372,7 +372,7 @@ void initialize_recycler()
   exit(1);
   }
 
-void update_array_values(job_array *pa, void *j, int old_state, enum ArrayEventsEnum event)
+void update_array_values(job_array *pa, int old_state, enum ArrayEventsEnum event, char *job_id, long job_atr_hold, int job_exit_status)
   {
   fprintf(stderr, "The call to update_array_values needs to be mocked!!\n");
   exit(1);

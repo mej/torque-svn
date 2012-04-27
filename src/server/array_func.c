@@ -1580,13 +1580,13 @@ int modify_array_range(
 void update_array_values(
 
   job_array            *pa,        /* I */
-  void                 *j,         /* I */
   int                   old_state, /* I */
-  enum ArrayEventsEnum  event)     /* I */
+  enum ArrayEventsEnum  event,     /* I */
+  char                 *job_id,
+  long                  job_atr_hold,
+  int                   job_exit_status)
 
   {
-  job  *pjob = (job *)j;
-  int   exit_status;
   long  moab_compatible;
 
   switch (event)
@@ -1609,14 +1609,13 @@ void update_array_values(
 
     case aeTerminate:
 
-      exit_status = pjob->ji_qs.ji_un.ji_exect.ji_exitstat;
       if (old_state == JOB_STATE_RUNNING)
         {
         if (pa->ai_qs.jobs_running > 0)
           pa->ai_qs.jobs_running--;
         }
 
-      if (exit_status == 0)
+      if (job_exit_status == 0)
         {
         pa->ai_qs.num_successful++;
         pa->ai_qs.jobs_done++;
@@ -1636,7 +1635,7 @@ void update_array_values(
       if (moab_compatible != FALSE)
         {
         /* only need to update if the job wasn't previously held */
-        if ((pjob->ji_wattr[JOB_ATR_hold].at_val.at_long & HOLD_l) == FALSE)
+        if ((job_atr_hold & HOLD_l) == FALSE)
           {
           int  i;
           int  newstate;
@@ -1649,7 +1648,7 @@ void update_array_values(
             if (pa->job_ids[i] == NULL)
               continue;
 
-            if (!strcmp(pa->job_ids[i], pjob->ji_qs.ji_jobid))
+            if (!strcmp(pa->job_ids[i], job_id))
               continue;
 
             if ((pj = find_job(pa->job_ids[i])) == NULL)
