@@ -339,7 +339,6 @@ void mom_server_init(
   mom_server *pms)
 
   {
-  pms->SStream = -1;
   pms->MOMLastRecvFromServerTime = 0;
   pms->ReportMomState = 1;
 
@@ -3680,8 +3679,6 @@ mom_server *mom_server_valid_message_source(
     {
     /* Now this is the current stream number for this server */
 
-    pms->SStream = chan->sock;
-
     mom_server_all_update_stat();
 
     return(pms);
@@ -3708,8 +3705,7 @@ mom_server *mom_server_valid_message_source(
         {
         pms = &mom_servers[sindex];
 
-        if (pms->pbs_servername[0] &&
-            pms->SStream != -1)
+        if (pms->pbs_servername[0])
           {
           struct addrinfo *addr_info;
 
@@ -3727,7 +3723,6 @@ mom_server *mom_server_valid_message_source(
               {
               okclients = AVL_insert(ipaddr, 0, NULL, okclients);
 
-              pms->SStream = chan->sock;
               return(pms);
               }
             }
@@ -4145,8 +4140,6 @@ void mom_is_request(
     }
 
   /* check that machine is okay to be a server */
-  /* If the stream is the SStream we already opened, then it's fine  */
-
   if ((pms = mom_server_valid_message_source(chan, &err_msg)) == NULL)
     {
     getpeername(chan->sock,&s_addr,&len);
@@ -4207,7 +4200,7 @@ void mom_is_request(
 
         for (sindex = 0;sindex < PBS_MAXSERVER;sindex++)
           {
-          if (mom_servers[sindex].SStream != -1)
+          if (mom_servers[sindex].pbs_servername[0] != '\0')
             state_to_server(sindex, 1);
           }
         }
@@ -4452,7 +4445,7 @@ void check_busy(
 
     for (sindex = 0;sindex < PBS_MAXSERVER;sindex++)
       {
-      if (mom_servers[sindex].SStream != -1)
+      if (mom_servers[sindex].pbs_servername[0] != '\0')
         mom_servers[sindex].ReportMomState = 1;
       }
     }
@@ -4478,7 +4471,7 @@ void check_busy(
 
     for (sindex = 0;sindex < PBS_MAXSERVER;sindex++)
       {
-      if (mom_servers[sindex].SStream != -1)
+      if (mom_servers[sindex].pbs_servername[0] != '\0')
         mom_servers[sindex].ReportMomState = 1;
       }
     }
@@ -4727,9 +4720,9 @@ void state_to_server(
   int force)        /* I (boolean) */
 
   {
-  static char id[] = "state_to_server";
-  mom_server *pms = &mom_servers[ServerIndex];
-  int ret;
+  mom_server      *pms = &mom_servers[ServerIndex];
+  int              ret;
+  int              stream;
   struct tcp_chan *chan = NULL;
 
   if ((force == 0) &&
@@ -4738,58 +4731,46 @@ void state_to_server(
     return;    /* Do nothing, just return */
     }
 
-  if ((chan = DIS_tcp_setup(pms->SStream)) == NULL)
-    return;
+  stream = tcp_connect_sockaddr((struct sockaddr *)&pms->sock_addr, sizeof(pms->sock_addr));
 
-  if (is_compose(chan, pms->pbs_servername, IS_UPDATE) != DIS_SUCCESS)
+  if (IS_VALID_STREAM(stream))
     {
-    DIS_tcp_cleanup(chan);
-    return;
-    }
-
-  ret = diswus(chan, pbs_mom_port);
-  if (ret)
-    {
-    DIS_tcp_cleanup(chan);
-    return;
-    }
-  
-  ret = diswus(chan, pbs_rm_port);
-  if (ret)
-    {
-    DIS_tcp_cleanup(chan);
-    return;
-    }
-
-  if (diswui(chan, internal_state) != DIS_SUCCESS)
-    {
-    mom_server_stream_error(chan->sock, pms->pbs_servername, id, "writing internal state");
-
-    DIS_tcp_cleanup(chan);
-    return;
-    }
-
-  if (mom_server_flush_io(chan, id, "flush") == DIS_SUCCESS)
-    {
-    /* send successful, unset ReportMomState */
-
-    pms->ReportMomState = 0;
-
-    if (LOGLEVEL >= 4)
+    if ((chan = DIS_tcp_setup(stream)) == NULL)
       {
-      sprintf(log_buffer, "sent updated state 0x%x to server %s",
-              internal_state,
-              pms->pbs_servername);
-
-      log_record(
-        PBSEVENT_ERROR,
-        PBS_EVENTCLASS_JOB,
-        id,
-        log_buffer);
       }
-    }
+    else if (is_compose(chan, pms->pbs_servername, IS_UPDATE) != DIS_SUCCESS)
+      {
+      }
+    else if ((ret = diswus(chan, pbs_mom_port)) != DIS_SUCCESS)
+      {
+      }
+    else if ((ret = diswus(chan, pbs_rm_port)) != DIS_SUCCESS)
+      {
+      }
+    else if (diswui(chan, internal_state) != DIS_SUCCESS)
+      {
+      mom_server_stream_error(chan->sock, pms->pbs_servername, __func__, "writing internal state");
+      }
+    else if (mom_server_flush_io(chan, __func__, "flush") == DIS_SUCCESS)
+      {
+      /* send successful, unset ReportMomState */
+      pms->ReportMomState = 0;
+      
+      if (LOGLEVEL >= 4)
+        {
+        sprintf(log_buffer, "sent updated state 0x%x to server %s",
+          internal_state,
+          pms->pbs_servername);
+        
+        log_record(PBSEVENT_ERROR, PBS_EVENTCLASS_JOB, __func__, log_buffer);
+        }
+      }
 
-  DIS_tcp_cleanup(chan);
+    DIS_tcp_cleanup(chan);
+    }
+  else
+    mom_server_stream_error(-1, pms->pbs_servername, __func__, "Coudln't open stream to server");
+
   return;
   }  /* END state_to_server() */
 
@@ -4901,7 +4882,7 @@ int mom_open_socket_to_jobs_server(
 
       pms = &mom_servers[sindex];
 
-      if (pms->SStream != -1)
+      if (pms->pbs_servername[0] != '\0')
         {
         ipaddr = ntohl(pms->sock_addr.sin_addr.s_addr);
 
