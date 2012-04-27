@@ -2033,6 +2033,9 @@ int pbsd_init_job(
   time_t            time_now = time(NULL);
   char              log_buf[LOCAL_LOG_BUF_SIZE];
   int               local_errno = 0;
+  char  job_id[PBS_MAXSVRJOBID+1];
+  long  job_atr_hold;
+  int   job_exit_status;
 
   pjob->ji_momhandle = -1;
 
@@ -2221,14 +2224,20 @@ int pbsd_init_job(
 
         if (pjob != NULL)
           {
-          update_array_values(pa,pjob,JOB_STATE_RUNNING,aeTerminate);
+          strcpy(job_id, pjob->ji_qs.ji_jobid);
+          job_atr_hold = pjob->ji_wattr[JOB_ATR_hold].at_val.at_long;
+          job_exit_status = pjob->ji_qs.ji_un.ji_exect.ji_exitstat;
+          pthread_mutex_unlock(pjob->ji_mutex);
+          update_array_values(pa,JOB_STATE_RUNNING,aeTerminate,
+              job_id, job_atr_hold, job_exit_status);
           
-          pthread_mutex_unlock(pa->ai_mutex);
           if (LOGLEVEL >= 7)
             {
             sprintf(log_buf, "%s: unlocking ai_mutex", __func__);
-            log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pjob->ji_qs.ji_jobid, log_buf);
+            log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, job_id, log_buf);
             }
+          pthread_mutex_unlock(pa->ai_mutex);
+          pjob = find_job(job_id);
           }
          
         }
@@ -2274,18 +2283,21 @@ int pbsd_init_job(
   /* if job has IP address of Mom, it may have changed */
   /* reset based on hostname                           */
 
-  if ((pjob->ji_qs.ji_un_type == JOB_UNION_TYPE_EXEC) &&
-      (pjob->ji_qs.ji_un.ji_exect.ji_momaddr != 0))
+  if (pjob != NULL)
     {
-    if (pjob->ji_wattr[JOB_ATR_exec_host].at_flags & ATR_VFLAG_SET)
+    if ((pjob->ji_qs.ji_un_type == JOB_UNION_TYPE_EXEC) &&
+        (pjob->ji_qs.ji_un.ji_exect.ji_momaddr != 0))
       {
-      char *tmp = parse_servername(pjob->ji_wattr[JOB_ATR_exec_host].at_val.at_str, &d);
-      pjob->ji_qs.ji_un.ji_exect.ji_momaddr = get_hostaddr(&local_errno, tmp);
-      free(tmp);
-      }
-    else
-      {
-      pjob->ji_qs.ji_un.ji_exect.ji_momaddr = 0;
+      if (pjob->ji_wattr[JOB_ATR_exec_host].at_flags & ATR_VFLAG_SET)
+        {
+        char *tmp = parse_servername(pjob->ji_wattr[JOB_ATR_exec_host].at_val.at_str, &d);
+        pjob->ji_qs.ji_un.ji_exect.ji_momaddr = get_hostaddr(&local_errno, tmp);
+        free(tmp);
+        }
+      else
+        {
+        pjob->ji_qs.ji_un.ji_exect.ji_momaddr = 0;
+        }
       }
     }
 

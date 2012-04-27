@@ -169,7 +169,7 @@ void hold_job(attribute *,void *);
 int modify_array_range(job_array *,char *,svrattrl *,struct batch_request *,int);
 int modify_job(void **,svrattrl *,struct batch_request *,int, int);
 
-void update_array_values(job_array *,void *,int,enum ArrayEventsEnum);
+void update_array_values(job_array *,int,enum ArrayEventsEnum, char *job_id, long job_atr_hold, int job_exit_status);
 
 int register_array_depend(job_array*,struct batch_request *,int,int);
 void set_array_depend_holds(job_array *);

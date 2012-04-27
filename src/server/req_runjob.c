@@ -187,17 +187,19 @@ int req_runjob(
   struct batch_request *preq)  /* I (modified) */
 
   {
-  char   id[] = "req_runjob";
-  job                  *pjob;
-  int                   rc;
-  void                 *bp;
+  job   *pjob;
+  int   rc;
+  void  *bp;
+  int   setneednodes;
+  char  failhost[MAXLINE];
+  char  emsg[MAXLINE];
+  char  log_buf[LOCAL_LOG_BUF_SIZE + 1];
+  int   reply_sent = FALSE;
+  char  job_id[PBS_MAXSVRJOBID+1];
+  long  job_atr_hold;
+  int   job_exit_status;
+  int   job_state;
 
-  int                   setneednodes;
-
-  char                  failhost[MAXLINE];
-  char                  emsg[MAXLINE];
-  char                  log_buf[LOCAL_LOG_BUF_SIZE + 1];
-  int                   reply_sent = FALSE;
 
   /* chk_job_torun will extract job id and assign hostlist if specified */
 
@@ -211,6 +213,16 @@ int req_runjob(
     /* FAILURE - chk_job_torun performs req_reject internally */
 
     return(PBSE_UNKJOBID);
+    }
+
+  /* we don't currently allow running of an entire job array */
+
+  strcpy(job_id, pjob->ji_qs.ji_jobid);
+  if (strstr(pjob->ji_qs.ji_jobid,"[]") != NULL)
+    {
+    pthread_mutex_unlock(pjob->ji_mutex);
+    req_reject(PBSE_IVALREQ, 0, preq, NULL, "cannot run a job array");
+    return(PBSE_IVALREQ);
     }
 
   pthread_mutex_lock(scheduler_sock_jobct_mutex);
@@ -251,18 +263,34 @@ int req_runjob(
 
     if (pjob == NULL)
       {
+      rc = PBSE_JOBNOTFOUND;
       if (reply_sent == FALSE)
-        {
-        rc = PBSE_JOBNOTFOUND;
         req_reject(rc, 0, preq, NULL, "Job unexpectedly deleted");
-        }
+      pthread_mutex_unlock(pa->ai_mutex);
       return(rc);
       }
     
     if ((pa->ai_qs.slot_limit < 0) ||
         (pa->ai_qs.slot_limit > pa->ai_qs.jobs_running))
       {
-      update_array_values(pa,pjob,pjob->ji_qs.ji_state,aeRun);
+      job_atr_hold = pjob->ji_wattr[JOB_ATR_hold].at_val.at_long;
+      job_exit_status = pjob->ji_qs.ji_un.ji_exect.ji_exitstat;
+      job_state = pjob->ji_qs.ji_state;
+      pthread_mutex_unlock(pjob->ji_mutex);
+      update_array_values(pa,job_state,aeRun,
+          job_id, job_atr_hold, job_exit_status);
+      if ((pjob = find_job(job_id)) == NULL)
+        {
+        rc = PBSE_JOBNOTFOUND;
+        if (reply_sent == FALSE)
+          {
+          req_reject(rc, 0, preq, NULL,
+              "Job deleted while updating array values");
+          }
+        pthread_mutex_unlock(pa->ai_mutex);
+        return(rc);
+        }
+
       }
     else
       {
@@ -276,7 +304,7 @@ int req_runjob(
       
       if (LOGLEVEL >= 7)
         {
-        sprintf(log_buf, "%s: unlocked ai_mutex", id);
+        sprintf(log_buf, "%s: unlocked ai_mutex", __func__);
         log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pa->ai_qs.parent_id, log_buf);
         }
 
@@ -288,7 +316,7 @@ int req_runjob(
     
     if (LOGLEVEL >= 7)
       {
-      sprintf(log_buf, "%s: unlocked ai_mutex", id);
+      sprintf(log_buf, "%s: unlocked ai_mutex", __func__);
       log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pa->ai_qs.parent_id, log_buf);
       }
     

@@ -2472,7 +2472,9 @@ int req_jobobit(
   char                 *pc;
   char                 *tmp;
   job                  *pjob;
-  char                  jobid[PBS_MAXSVRJOBID+1];
+  char                  job_id[PBS_MAXSVRJOBID+1];
+  long  job_atr_hold;
+  int   job_exit_status;
 
   struct work_task     *ptask;
   svrattrl             *patlist;
@@ -2481,8 +2483,8 @@ int req_jobobit(
   time_t                time_now = time(NULL);
   long                  events = 0;
 
-  strcpy(jobid, preq->rq_ind.rq_jobobit.rq_jid);  /* This will be needed later for logging after preq is freed. */
-  pjob = find_job(preq->rq_ind.rq_jobobit.rq_jid);
+  strcpy(job_id, preq->rq_ind.rq_jobobit.rq_jid);  /* This will be needed later for logging after preq is freed. */
+  pjob = find_job(job_id);
 
   tmp = parse_servername(preq->rq_host, &dummy);
 
@@ -2509,7 +2511,7 @@ int req_jobobit(
       req_reject(PBSE_UNKJOBID, 0, preq, NULL, NULL);
       }
 
-    log_err(rc, jobid, log_buf);
+    log_err(rc, job_id, log_buf);
 
     if (pjob != NULL)
       pthread_mutex_unlock(pjob->ji_mutex);
@@ -2542,20 +2544,19 @@ int req_jobobit(
 
       /* NOTE:  was logged w/msg_obitnojob */
 
-      sprintf(log_buf, "obit received for job %s from host %s with bad state (state: %s)",
-        jobid,
-        preq->rq_host,
-        PJobState[pjob->ji_qs.ji_state]);
+      sprintf(log_buf,
+          "obit received for job %s from host %s with bad state (state: %s)",
+          job_id,
+          preq->rq_host,
+          PJobState[pjob->ji_qs.ji_state]);
 
-      log_err(PBSE_BADSTATE, jobid, log_buf);
+      log_err(PBSE_BADSTATE, job_id, log_buf);
 
       rc = PBSE_BADSTATE;
       }
 
-    req_reject(rc,0,preq,NULL,NULL);
-
     pthread_mutex_unlock(pjob->ji_mutex);
-
+    req_reject(rc,0,preq,NULL,NULL);
     return(rc);
     }  /* END if (pjob->ji_qs.ji_state != JOB_STATE_RUNNING) */
 
@@ -2566,13 +2567,12 @@ int req_jobobit(
 
     ptask = set_task(WORK_Timed, time_now + 1, wait_for_send, (void *)preq, FALSE);
 
+    pthread_mutex_unlock(pjob->ji_mutex);
     if (ptask == NULL)
       req_reject(PBSE_SYSTEM, 0, preq, NULL, NULL);
 
     /* In else case, the request is after callback. Please don't change things 
      * when you aren't sure what should happen. */
-
-    pthread_mutex_unlock(pjob->ji_mutex);
     /* Connection is left open to be used in wait_for_send
      * which ends up being a call to this function that writes to the socket */
 
@@ -2604,7 +2604,7 @@ int req_jobobit(
     log_event(
       PBSEVENT_ERROR | PBSEVENT_JOB,
       PBS_EVENTCLASS_JOB,
-      jobid,
+      job_id,
       "obit received - updating final job usage info");
     }
 
@@ -2642,7 +2642,7 @@ int req_jobobit(
       log_event(
         PBSEVENT_ERROR | PBSEVENT_JOB,
         PBS_EVENTCLASS_JOB,
-        jobid,
+        job_id,
         "No resources used found");
       }
 
@@ -2788,7 +2788,7 @@ int req_jobobit(
           log_event(
             PBSEVENT_JOB_USAGE | PBSEVENT_JOB_USAGE,
             PBS_EVENTCLASS_JOB,
-            pjob->ji_qs.ji_jobid,
+            job_id,
             "received JOB_EXEC_INITRST, setting job CHECKPOINT_FLAG flag");
           }
 
@@ -2832,7 +2832,7 @@ int req_jobobit(
     log_event(
       PBSEVENT_ERROR | PBSEVENT_JOB,
       PBS_EVENTCLASS_JOB,
-      jobid,
+      job_id,
       log_buf);
     }
 
@@ -2869,7 +2869,7 @@ int req_jobobit(
       log_event(
         PBSEVENT_JOB_USAGE | PBSEVENT_JOB_USAGE,
         PBS_EVENTCLASS_JOB,
-        pjob->ji_qs.ji_jobid,
+        job_id,
         acctbuf);
       }
     else
@@ -2881,17 +2881,17 @@ int req_jobobit(
       log_event(
         PBSEVENT_JOB,
         PBS_EVENTCLASS_JOB,
-        pjob->ji_qs.ji_jobid,
+        job_id,
         acctbuf);
       }
 
     if (LOGLEVEL >= 7)
       {
       sprintf(log_buf, "calling on_job_exit from %s", __func__);
-      log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pjob->ji_qs.ji_jobid, log_buf);
+      log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, job_id, log_buf);
       }
 
-    set_task(WORK_Immed, 0, on_job_exit, strdup(pjob->ji_qs.ji_jobid), FALSE);
+    set_task(WORK_Immed, 0, on_job_exit, strdup(job_id), FALSE);
 
     /* decrease array running job count */
     if ((pjob->ji_arraystruct != NULL) &&
@@ -2901,15 +2901,22 @@ int req_jobobit(
 
       if (pjob == NULL)
         return(PBSE_UNKJOBID);
+      
+      job_atr_hold = pjob->ji_wattr[JOB_ATR_hold].at_val.at_long;
+      job_exit_status = pjob->ji_qs.ji_un.ji_exect.ji_exitstat;
+      pthread_mutex_unlock(pjob->ji_mutex);
+      update_array_values(pa,JOB_STATE_RUNNING,aeTerminate,
+          job_id, job_atr_hold, job_exit_status);
         
-      update_array_values(pa,pjob,JOB_STATE_RUNNING,aeTerminate);
-        
-      pthread_mutex_unlock(pa->ai_mutex);
       if (LOGLEVEL >= 7)
         {
         sprintf(log_buf, "%s: unlocking ai_mutex", __func__);
-        log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pjob->ji_qs.ji_jobid, log_buf);
+        log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, job_id, log_buf);
         }
+      pthread_mutex_unlock(pa->ai_mutex);
+      pjob = find_job(job_id);
+      if (pjob == NULL)
+        return(PBSE_UNKJOBID);
       }
 
     if (LOGLEVEL >= 4)
@@ -2917,7 +2924,7 @@ int req_jobobit(
       log_event(
         PBSEVENT_ERROR | PBSEVENT_JOB,
         PBS_EVENTCLASS_JOB,
-        jobid,
+        job_id,
         "on_job_exit task assigned to job");
       }
 
@@ -2963,14 +2970,14 @@ int req_jobobit(
 
     svr_setjobstate(pjob, JOB_STATE_EXITING, pjob->ji_qs.ji_substate, FALSE);
 
-    set_task(WORK_Immed, 0, on_job_rerun, strdup(pjob->ji_qs.ji_jobid), FALSE);
+    set_task(WORK_Immed, 0, on_job_rerun, strdup(job_id), FALSE);
 
     if (LOGLEVEL >= 4)
       {
       log_event(
         PBSEVENT_ERROR | PBSEVENT_JOB,
         PBS_EVENTCLASS_JOB,
-        jobid,
+        job_id,
         "on_job_rerun task assigned to job");
       }
 
@@ -3007,7 +3014,7 @@ int req_jobobit(
     log_event(
       PBSEVENT_ERROR | PBSEVENT_JOB,
       PBS_EVENTCLASS_JOB,
-      jobid,
+      job_id,
       "req_jobobit completed");
     }
 
