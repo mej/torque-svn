@@ -391,7 +391,7 @@ int process_request(
     goto process_request_cleanup;
     }
 
-  if ((rc == PBSE_SYSTEM) || (rc == PBSE_INTERNAL))
+  if ((rc == PBSE_SYSTEM) || (rc == PBSE_INTERNAL) || (rc == PBSE_SOCKET_CLOSE))
     {
     /* FAILURE */
     /* read error, likely cannot send reply so just disconnect */
@@ -659,7 +659,7 @@ int process_request(
 
 process_request_cleanup:
 
-  close_conn(sfds, FALSE);
+  /*close_conn(sfds, FALSE);*/
 
   if (free_request == TRUE)
     free_br(request);

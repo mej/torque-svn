@@ -470,8 +470,8 @@ void *start_process_pbs_server_port(void *new_sock)
   int rc = PBSE_NONE;
 
   free(new_sock);
-  while (rc != PBSE_SOCKET_DATA && rc != PBSE_SOCKET_INFORMATION 
-        && rc != PBSE_INTERNAL && rc != PBSE_SYSTEM )
+  while ((rc != PBSE_SOCKET_DATA) && (rc != PBSE_SOCKET_INFORMATION) 
+        && (rc != PBSE_INTERNAL) && (rc != PBSE_SYSTEM)  && (rc != PBSE_SOCKET_CLOSE))
     {
     netcounter_incr();
     rc = process_pbs_server_port(sock);
