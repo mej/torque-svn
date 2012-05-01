@@ -13,7 +13,7 @@ int tm_spawn(int argc, char **argv, char **envp, tm_node_id where, tm_task_id *t
   exit(1);
   }
 
-int tm_poll(struct tcp_chan *chan, tm_event_t poll_event, tm_event_t *result_event, int wait, int *tm_errno)
+int tm_poll(tm_event_t poll_event, tm_event_t *result_event, int wait, int *tm_errno)
   { 
   fprintf(stderr, "The call to tm_poll needs to be mocked!!\n");
   exit(1);
