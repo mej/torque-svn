@@ -246,6 +246,19 @@ void mom_cleanup_checkpoint_hold(
     }
 
   pjob = find_job(jobid);
+  if (pjob == NULL)
+    {
+    if (LOGLEVEL >= 3)
+      {
+      sprintf(log_buf,
+        "%s:failed to find job\n",
+        id);
+
+      log_event(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,jobid,log_buf);
+      }
+    free(jobid);
+    return;
+    }
   free(jobid);
 
   if (LOGLEVEL >= 7)
