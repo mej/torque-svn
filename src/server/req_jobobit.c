@@ -2800,7 +2800,6 @@ int req_jobobit(
 
         svr_setjobstate(pjob, newstate, newsubst, FALSE);
 
-        req_reject(PBSE_SYSTEM, 0, preq, NULL, NULL);
         close_conn(pjob->ji_momhandle, FALSE);
         pjob->ji_momhandle = -1;
 
@@ -2959,7 +2958,6 @@ int req_jobobit(
 
       svr_setjobstate(pjob, newstate, newsubst, FALSE);
 
-      req_reject(PBSE_SYSTEM, 0, preq, NULL, NULL);
       close_conn(pjob->ji_momhandle, FALSE);
       pjob->ji_momhandle = -1;
 
