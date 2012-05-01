@@ -884,7 +884,7 @@ void close_conn(
   svr_conn[sd].cn_active = Idle;
   svr_conn[sd].cn_func = (void *(*)())0;
   svr_conn[sd].cn_authen = 0;
-  svr_conn[sd].is_tm = 0;
+  svr_conn[sd].cn_stay_open = FALSE;
   rc = close(sd);
     
   if (has_mutex == FALSE)

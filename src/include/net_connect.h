@@ -221,7 +221,7 @@ struct connection
   void *(*cn_func)(void *);  /* read function when data rdy */
   void (*cn_oncl)(int);  /* func to call on close */
   pthread_mutex_t *cn_mutex;
-  int is_tm;
+  int cn_stay_open; /* Set to TRUE when the connection needs to remain open */
   };
 
 struct netcounter
