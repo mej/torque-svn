@@ -193,7 +193,7 @@ int dis_request_read(
 
     case PBS_BATCH_Disconnect:
 
-      return(-1);  /* set EOF return */
+      return(PBSE_SOCKET_CLOSE);  /* set EOF return */
 
       /*NOTREACHED*/
 

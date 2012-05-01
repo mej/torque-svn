@@ -163,7 +163,7 @@ void *mom_process_request(
     return NULL;
     }
 
-  if ((rc == PBSE_SYSTEM) || (rc == PBSE_INTERNAL))
+  if ((rc == PBSE_SYSTEM) || (rc == PBSE_INTERNAL) || (rc == PBSE_SOCKET_CLOSE))
     {
     /* FAILURE */
     /* read error, likely cannot send reply so just disconnect */
