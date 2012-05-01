@@ -164,6 +164,7 @@ hash_table_t        *received_table;
 int                  updates_waiting_to_send = 0;
 time_t               LastServerUpdateTime;
 int                  ServerStatUpdateInterval;
+extern struct connection svr_conn[];
 
 const char *PMOMCommand[] =
   {
@@ -1883,7 +1884,7 @@ void send_im_error(
   int          socket;
   int          i;
   int          rc;
-  struct tcp_chan *chan = NULL;
+  struct tcp_chan *local_chan = NULL;
   
   if (reply)
     {
@@ -1893,21 +1894,21 @@ void send_im_error(
         {
         rc = DIS_INVALID;
         }
-      else if ((chan = DIS_tcp_setup(socket)) == NULL)
+      else if ((local_chan = DIS_tcp_setup(socket)) == NULL)
         {
         }
-      else if ((rc = im_compose(chan,pjob->ji_qs.ji_jobid,cookie,IM_ERROR,event,fromtask)) != DIS_SUCCESS)
+      else if ((rc = im_compose(local_chan,pjob->ji_qs.ji_jobid,cookie,IM_ERROR,event,fromtask)) != DIS_SUCCESS)
         {
         }
-      else if ((rc = diswsi(chan,err)) != DIS_SUCCESS)
+      else if ((rc = diswsi(local_chan,err)) != DIS_SUCCESS)
         {
         }
       else
-        rc = DIS_tcp_wflush(chan);
+        rc = DIS_tcp_wflush(local_chan);
 
       close(socket);
-      if (chan != NULL)
-        DIS_tcp_cleanup(chan);
+      if (local_chan != NULL)
+        DIS_tcp_cleanup(local_chan);
 
       if (rc == DIS_SUCCESS)
         break;
@@ -1962,7 +1963,7 @@ int reply_to_join_job_as_sister(
   int          retry_count;
   int          ret = DIS_SUCCESS;
   int          command;
-  struct tcp_chan *chan = NULL;
+  struct tcp_chan *local_chan = NULL;
 
   command = IM_RADIX_ALL_OK;
 
@@ -1976,18 +1977,18 @@ int reply_to_join_job_as_sister(
       {
       ret = PBSE_SOCKET_FAULT;
       }
-    else if ((chan = DIS_tcp_setup(socket)) == NULL)
+    else if ((local_chan = DIS_tcp_setup(socket)) == NULL)
       {
       }
-    else if ((ret = im_compose(chan, pjob->ji_qs.ji_jobid, cookie, command, event, fromtask)) != DIS_SUCCESS)
+    else if ((ret = im_compose(local_chan, pjob->ji_qs.ji_jobid, cookie, command, event, fromtask)) != DIS_SUCCESS)
       {
       }
     else
-      ret = DIS_tcp_wflush(chan);
+      ret = DIS_tcp_wflush(local_chan);
 
     close(socket);
-    if (chan != NULL)
-      DIS_tcp_cleanup(chan);
+    if (local_chan != NULL)
+      DIS_tcp_cleanup(local_chan);
 
     if (ret == DIS_SUCCESS)
       {
@@ -3350,7 +3351,7 @@ int im_get_resc_as_sister(
 
     close(local_socket);
     if (local_chan != NULL)
-      DIS_tcp_cleanup(chan);
+      DIS_tcp_cleanup(local_chan);
     }
   if (info != NULL)
     free(info);
@@ -4126,7 +4127,7 @@ int handle_im_get_resc_response(
   
   ptask = task_check(pjob, event_task);
   
-  if (ptask == NULL)
+  if (ptask != NULL)
     {
     tm_reply(ptask->ti_chan, TM_OKAY, event);
     
@@ -4536,6 +4537,7 @@ void im_request(
   if (version != IM_PROTOCOL_VER)
     {
     close_conn(chan->sock, FALSE);
+    svr_conn[chan->sock].cn_stay_open = FALSE;
     chan->sock = -1;
     sprintf(log_buffer, "protocol version %d unknown", version);
     log_err(-1, id, log_buffer);
@@ -4563,6 +4565,7 @@ void im_request(
     long final_len = 0;
     char *tmp_line = calloc(1, max_len + 1);
     close_conn(chan->sock, FALSE);
+    svr_conn[chan->sock].cn_stay_open = FALSE;
     chan->sock = -1;
     if (tmp_line != NULL)
       ret = AVL_list(okclients, &tmp_line, &final_len, &max_len);
@@ -4612,6 +4615,7 @@ void im_request(
   if (ret != DIS_SUCCESS)
     {
     close_conn(chan->sock, FALSE);
+    svr_conn[chan->sock].cn_stay_open = FALSE;
     chan->sock = -1;
     sprintf(log_buffer,"request for job %s failed - %s (command)",
       jobid,
@@ -4642,6 +4646,7 @@ void im_request(
       {
       ret = im_join_job_as_sister(chan,jobid,addr,cookie,event,fromtask,command,FALSE);
       close_conn(chan->sock, FALSE);
+      svr_conn[chan->sock].cn_stay_open = FALSE;
       chan->sock = -1;
 
       if (ret == IM_FAILURE)
@@ -4656,6 +4661,7 @@ void im_request(
       {
       ret = im_join_job_as_sister(chan,jobid,addr,cookie,event,fromtask,command,TRUE);
       close_conn(chan->sock, FALSE);
+      svr_conn[chan->sock].cn_stay_open = FALSE;
       chan->sock = -1;
 
       if (ret == IM_FAILURE)
@@ -4685,6 +4691,7 @@ void im_request(
         netaddr(addr),
         jobid);
       close_conn(chan->sock, FALSE);
+      svr_conn[chan->sock].cn_stay_open = FALSE;
       chan->sock = -1;
       goto err;
       }
@@ -4696,6 +4703,7 @@ void im_request(
       cookie,
       event);
     close_conn(chan->sock, FALSE);
+    svr_conn[chan->sock].cn_stay_open = FALSE;
     chan->sock = -1;
     log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, jobid, log_buffer);
     goto im_req_finish;
@@ -4713,6 +4721,7 @@ void im_request(
 
     send_im_error(PBSE_BADSTATE,1,pjob,cookie,event,fromtask);
     close_conn(chan->sock, FALSE);
+    svr_conn[chan->sock].cn_stay_open = FALSE;
     chan->sock = -1;
  
     goto err;
@@ -4740,6 +4749,7 @@ void im_request(
 
     send_im_error(PBSE_BADSTATE, 1, pjob, cookie, event, fromtask);
     close_conn(chan->sock, FALSE);
+    svr_conn[chan->sock].cn_stay_open = FALSE;
     chan->sock = -1;
  
     goto im_req_finish;
@@ -4767,6 +4777,7 @@ void im_request(
       if (nodeidx == pjob->ji_numnodes)
         {
         close_conn(chan->sock, FALSE);
+        svr_conn[chan->sock].cn_stay_open = FALSE;
         sprintf(log_buffer, "stream %d not found", chan->sock);
         log_err(-1, id, log_buffer);
         goto err;
@@ -4786,6 +4797,7 @@ void im_request(
       if ((ep == NULL) && (command != IM_ERROR))
         {
         close_conn(chan->sock, FALSE);
+        svr_conn[chan->sock].cn_stay_open = FALSE;
         chan->sock = -1;
         sprintf(log_buffer, "event %d taskid %ld not found", event, (long)fromtask);
         log_err(-1, id, log_buffer);
@@ -4813,6 +4825,7 @@ void im_request(
       if (check_ms(chan, pjob) == FALSE)
         im_kill_job_as_sister(pjob,event,momport,FALSE);
       close_conn(chan->sock, FALSE);
+      svr_conn[chan->sock].cn_stay_open = FALSE;
       chan->sock = -1;
       break;
       }
@@ -4823,6 +4836,7 @@ void im_request(
         goto fini;*/
       im_kill_job_as_sister(pjob,event,momport,TRUE);
       close_conn(chan->sock, FALSE);
+      svr_conn[chan->sock].cn_stay_open = FALSE;
       chan->sock = -1;
       goto im_req_finish;
       
@@ -4833,6 +4847,7 @@ void im_request(
       {
       ret = im_spawn_task(chan,cookie,event,addr,fromtask,pjob);
       close_conn(chan->sock, FALSE);
+      svr_conn[chan->sock].cn_stay_open = FALSE;
       chan->sock = -1;
 
       if (ret == IM_FAILURE)
@@ -4847,8 +4862,7 @@ void im_request(
     case IM_SIGNAL_TASK:
       {
       ret = im_signal_task(chan,pjob,cookie,event,fromtask);
-      close_conn(chan->sock, FALSE);
-      chan->sock = -1;
+      svr_conn[chan->sock].cn_stay_open = TRUE;
       
       if (ret == IM_FAILURE)
         {
@@ -4862,8 +4876,7 @@ void im_request(
     case IM_OBIT_TASK:
       {
       ret = im_obit_task(chan,pjob,cookie,event,fromtask);
-      close_conn(chan->sock, FALSE);
-      chan->sock = -1;
+      svr_conn[chan->sock].cn_stay_open = TRUE;
       
       if (ret == IM_FAILURE)
         {
@@ -4877,8 +4890,7 @@ void im_request(
     case IM_GET_INFO:
       {
       ret = im_get_info(chan,pjob,cookie,event,fromtask);
-      close_conn(chan->sock, FALSE);
-      chan->sock = -1;
+      svr_conn[chan->sock].cn_stay_open = TRUE;
       
       if (ret == IM_FAILURE)
         {
@@ -4892,8 +4904,7 @@ void im_request(
     case IM_GET_RESC:
       {
       ret = im_get_resc_as_sister(chan,pjob,cookie,event,fromtask);
-      close_conn(chan->sock, FALSE);
-      chan->sock = -1;
+      svr_conn[chan->sock].cn_stay_open = TRUE;
       
       if (ret == IM_FAILURE)
         {
@@ -4910,12 +4921,12 @@ void im_request(
       if ((ret = check_ms(chan, pjob)) == TRUE)
         {
         close_conn(chan->sock, FALSE);
+        svr_conn[chan->sock].cn_stay_open = FALSE;
         chan->sock = -1;
         log_err(-1, __func__, "check_ms error IM_POLL_JOB");
         goto err;
         }
-      close_conn(chan->sock, FALSE);
-      chan->sock = -1;
+      svr_conn[chan->sock].cn_stay_open = TRUE;
 
       /* im_poll_job_as_sister will create a new connection and send
          an IM_ALL_OKAY message which will then be processed by the 
@@ -4932,13 +4943,14 @@ void im_request(
       if ((ret = check_ms(chan, pjob)) == TRUE)
         {
         close_conn(chan->sock, FALSE);
+        svr_conn[chan->sock].cn_stay_open = FALSE;
         chan->sock = -1;
         log_err(-1, __func__, "check_ms error IM_ABORT_JOB");
         goto err;
         }
       
       im_abort_job(pjob,addr,cookie,event,fromtask);
-      close_conn(chan->sock, FALSE);
+      svr_conn[chan->sock].cn_stay_open = TRUE;
       break;
       }
     
@@ -4947,13 +4959,12 @@ void im_request(
       if ((ret = im_get_tid(pjob,cookie,event,fromtask)) == IM_FAILURE)
         {
         close_conn(chan->sock, FALSE);
+        svr_conn[chan->sock].cn_stay_open = FALSE;
         chan->sock = -1;
         log_err(-1, __func__, "im_get_tid error");
         goto err;
         }
-      
-      close_conn(chan->sock, FALSE);
-      chan->sock = -1;
+      svr_conn[chan->sock].cn_stay_open = TRUE;
       break;
       }
 
@@ -4962,6 +4973,7 @@ void im_request(
       /* Sender is another MOM telling me that a request has completed successfully */
 
 
+      svr_conn[chan->sock].cn_stay_open = FALSE;
       switch (event_com)
         {
         case IM_JOIN_JOB:
@@ -5136,6 +5148,7 @@ void im_request(
         case IM_JOIN_JOB_RADIX:
           {
           close_conn(chan->sock, FALSE);
+          svr_conn[chan->sock].cn_stay_open = FALSE;
           chan->sock = -1;
 
           pjob = find_job(jobid);
@@ -5342,6 +5355,7 @@ void im_request(
             if (ret != DIS_SUCCESS)
               {
               close_conn(chan->sock, FALSE);
+              svr_conn[chan->sock].cn_stay_open = FALSE;
               chan->sock = -1;
               log_err(-1, __func__, "Count not read cput||mem||vmem||nodeid");
               goto err;
@@ -5424,6 +5438,7 @@ void im_request(
             if (ret != DIS_SUCCESS)
               {
               close_conn(chan->sock, FALSE);
+              svr_conn[chan->sock].cn_stay_open = FALSE;
               chan->sock = -1;
               log_err(-1, __func__, "Count not read cput||mem||vmem||nodeid");
               goto err;
@@ -5489,11 +5504,13 @@ void im_request(
           else
             {
             close_conn(chan->sock, FALSE);
+            svr_conn[chan->sock].cn_stay_open = FALSE;
             chan->sock = -1;
             log_err(-1, __func__, "KILL_JOB_RADIX OK received on a leaf node");
             goto err;
             }
           close_conn(chan->sock, FALSE);
+          svr_conn[chan->sock].cn_stay_open = FALSE;
           chan->sock = -1;
           break;
           }
@@ -5530,6 +5547,7 @@ void im_request(
       if (ret != DIS_SUCCESS)
         {
         close_conn(chan->sock, FALSE);
+        svr_conn[chan->sock].cn_stay_open = FALSE;
         chan->sock = -1;
         log_err(-1, __func__, "Could not read error code");
         goto err;
@@ -5540,12 +5558,14 @@ void im_request(
         if ((ret = check_ms(chan, pjob)) == TRUE)
           {
           close_conn(chan->sock, FALSE);
+          svr_conn[chan->sock].cn_stay_open = FALSE;
           chan->sock = -1;
           log_err(-1, __func__, "check_ms failed");
           goto err;
           }
         }
       close_conn(chan->sock, FALSE);
+      svr_conn[chan->sock].cn_stay_open = FALSE;
       chan->sock = -1;
 
       
@@ -5673,11 +5693,9 @@ void im_request(
             break;
          
 
-          /* When is this connection created? *MUTSU* */
           tm_reply(ptask->ti_chan, TM_ERROR, event);
           diswsi(ptask->ti_chan, errcode);
           DIS_tcp_wflush(ptask->ti_chan);
-          /* Does it need to be closed here? *MUTSU* */
           
           break;
           

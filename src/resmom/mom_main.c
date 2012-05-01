@@ -5436,7 +5436,11 @@ int do_tcp(
     }
 
   if ((rc = tcp_read_proto_version(chan, &proto, &version)) != DIS_SUCCESS)
+    {
+    DIS_tcp_cleanup(chan);
+    chan = NULL;
     goto do_tcp_cleanup;
+    }
 
   switch (proto)
     {
@@ -5472,7 +5476,7 @@ int do_tcp(
     case TM_PROTOCOL:
 
       DBPRT(("%s: got an internal task manager request\n", __func__))
-      svr_conn[chan->sock].is_tm = 1;
+      svr_conn[chan->sock].cn_stay_open = TRUE;
       rc = tm_request(chan, version);
       while ((rc == PBSE_NONE) && (tcp_chan_has_data(chan) == TRUE))
         {
@@ -5511,21 +5515,19 @@ int do_tcp(
         {
         DBPRT(("%s: unknown request %d\n", __func__, proto))
         }
+
+      svr_conn[chan->sock].cn_stay_open = FALSE;
       }
-
       goto do_tcp_cleanup;
-
-      /*NOTREACHED*/
-
-
       break;
     }  /* END switch (proto) */
-  if (proto != TM_PROTOCOL)
+  if (svr_conn[chan->sock].cn_stay_open == FALSE) 
     DIS_tcp_cleanup(chan);
   return rc;
 
 do_tcp_cleanup:
-  DIS_tcp_cleanup(chan);
+  if ((chan != NULL) && (svr_conn[chan->sock].cn_stay_open == FALSE))
+    DIS_tcp_cleanup(chan);
   return DIS_INVALID;
   }  /* END do_tcp() */
 
@@ -5594,7 +5596,7 @@ void *tcp_request(
       case PBSE_MEM_MALLOC:
       case DIS_EOD:
       case DIS_INVALID:
-        if (svr_conn[socket].is_tm != 1)
+        if (svr_conn[socket].cn_stay_open == FALSE)
           close_conn(socket, FALSE);
         break;
 
