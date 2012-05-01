@@ -142,6 +142,7 @@ static tm_task_id tm_jobtid = TM_NULL_TASK;
 static tm_node_id tm_jobndid = TM_ERROR_NODE;
 static int  tm_momport = 0;
 static int  local_conn = -1;
+static struct tcp_chan *static_chan = NULL;
 static int  init_done = 0;
 int *tm_conn = &local_conn;
 int  event_count = 0;
@@ -704,24 +705,12 @@ int tm_init(
 
   add_event(nevent, TM_ERROR_NODE, TM_INIT, (void *)roots);
 
-  if ((chan = DIS_tcp_setup(local_conn)) == NULL)
-    {
-    DBPRT(("%s: Error allocating memory for sock buffer %d", __func__, PBSE_MEM_MALLOC))
-      return TM_BADINIT;
-    }
-
   while (TRUE)
     {
-    if ((err = tm_poll(chan, TM_NULL_EVENT, &revent, 1, &nerr)) != TM_SUCCESS)
-      {
-      DIS_tcp_cleanup(chan);
+    if ((err = tm_poll(TM_NULL_EVENT, &revent, 1, &nerr)) != TM_SUCCESS)
       return err;
-      }
-    if (tcp_chan_has_data(chan) == FALSE)
-      {
-      DIS_tcp_cleanup(chan);
+    if (event_count == 0)
       break;
-      }
     }
 
   return nerr;
@@ -1396,7 +1385,6 @@ tm_register(tm_whattodo_t *what, tm_event_t *event)
 */
 
 int tm_poll(
-    struct tcp_chan *chan,
     tm_event_t poll_event,
     tm_event_t *result_event,
     int  wait,
@@ -1454,7 +1442,18 @@ int tm_poll(
     DBPRT(("%s: INTERNAL ERROR %d events but no connection (%d)\n",
            id, event_count, local_conn))
 
+    if (static_chan != NULL)
+      {
+      DIS_tcp_cleanup(static_chan);
+      static_chan = NULL;
+      }
     return(TM_ENOTCONNECTED);
+    }
+
+  if ((static_chan == NULL) && ((static_chan = DIS_tcp_setup(local_conn)) == NULL))
+    {
+    DBPRT(("%s: Error allocating memory for sock buffer %d", __func__, PBSE_MEM_MALLOC))
+      return TM_BADINIT;
     }
 
   /*
@@ -1463,23 +1462,25 @@ int tm_poll(
   */
   pbs_tcp_timeout = wait ? FOREVER : 0;
 
-  prot = disrsi(chan, &ret);
+  prot = disrsi(static_chan, &ret);
 
   if (ret == DIS_EOD)
     {
     *result_event = TM_NULL_EVENT;
+    DIS_tcp_cleanup(static_chan);
+    static_chan = NULL;
     return TM_SUCCESS;
     }
   else if (ret != DIS_SUCCESS)
     {
     DBPRT(("%s: protocol number dis error %d\n", id, ret))
-    goto err;
+    goto tm_poll_error;
     }
 
   if (prot != TM_PROTOCOL)
     {
     DBPRT(("%s: bad protocol number %d\n", id, prot))
-    goto err;
+    goto tm_poll_error;
     }
 
   /*
@@ -1488,34 +1489,34 @@ int tm_poll(
   */
   pbs_tcp_timeout = FOREVER;
 
-  protver = disrsi(chan, &ret);
+  protver = disrsi(static_chan, &ret);
 
   if (ret != DIS_SUCCESS)
     {
     DBPRT(("%s: protocol version dis error %d\n", id, ret))
-    goto err;
+    goto tm_poll_error;
     }
 
   if (protver != TM_PROTOCOL_VER)
     {
     DBPRT(("%s: bad protocol version %d\n", id, protver))
-    goto err;
+    goto tm_poll_error;
     }
 
-  mtype = disrsi(chan, &ret);
+  mtype = disrsi(static_chan, &ret);
 
   if (ret != DIS_SUCCESS)
     {
     DBPRT(("%s: mtype dis error %d\n", id, ret))
-    goto err;
+    goto tm_poll_error;
     }
 
-  nevent = disrsi(chan, &ret);
+  nevent = disrsi(static_chan, &ret);
 
   if (ret != DIS_SUCCESS)
     {
     DBPRT(("%s: event dis error %d\n", id, ret))
-    goto err;
+    goto tm_poll_error;
     }
 
   *result_event = nevent;
@@ -1525,14 +1526,15 @@ int tm_poll(
   if ((ep = find_event(nevent)) == NULL)
     {
     DBPRT(("%s: No event found for number %d\n", id, nevent));
-    DIS_tcp_close(chan);
+    DIS_tcp_close(static_chan);
+    static_chan = NULL;
     local_conn = -1;
     return TM_ENOEVENT;
     }
 
   if (mtype == TM_ERROR)   /* problem, read error num */
     {
-    *tm_errno = disrsi(chan, &ret);
+    *tm_errno = disrsi(static_chan, &ret);
     DBPRT(("%s: event %d error %d\n", id, nevent, *tm_errno));
     goto tm_poll_done;
     }
@@ -1555,12 +1557,12 @@ int tm_poll(
       */
 
     case TM_INIT:
-      nnodes = disrsi(chan, &ret);
+      nnodes = disrsi(static_chan, &ret);
 
       if (ret != DIS_SUCCESS)
         {
         DBPRT(("%s: INIT failed nnodes\n", id))
-        goto err;
+        goto tm_poll_error;
         }
 
       node_table = (tm_node_id *)calloc(nnodes + 1,
@@ -1570,50 +1572,50 @@ int tm_poll(
       if (node_table == NULL)
         {
         perror("Memory allocation failed");
-        goto err;
+        goto tm_poll_error;
         }
 
       DBPRT(("%s: INIT nodes %d\n", id, nnodes))
 
       for (i = 0; i < nnodes; i++)
         {
-        node_table[i] = disrsi(chan, &ret);
+        node_table[i] = disrsi(static_chan, &ret);
 
         if (ret != DIS_SUCCESS)
           {
           DBPRT(("%s: INIT failed nodeid %d\n", id, i))
-          goto err;
+          goto tm_poll_error;
           }
         }
 
       node_table[nnodes] = TM_ERROR_NODE;
 
-      jobid = disrst(chan, &ret);
+      jobid = disrst(static_chan, &ret);
 
       if (ret != DIS_SUCCESS)
         {
         DBPRT(("%s: INIT failed jobid\n", id))
-        goto err;
+        goto tm_poll_error;
         }
 
       DBPRT(("%s: INIT daddy jobid %s\n", id, jobid))
 
-      node = disrsi(chan, &ret);
+      node = disrsi(static_chan, &ret);
 
       if (ret != DIS_SUCCESS)
         {
         DBPRT(("%s: INIT failed parent nodeid\n", id))
-        goto err;
+        goto tm_poll_error;
         }
 
       DBPRT(("%s: INIT daddy node %d\n", id, node))
 
-      tid = disrsi(chan, &ret);
+      tid = disrsi(static_chan, &ret);
 
       if (ret != DIS_SUCCESS)
         {
         DBPRT(("%s: INIT failed parent taskid\n", id))
-        goto err;
+        goto tm_poll_error;
         }
 
       DBPRT(("%s: INIT daddy tid %lu\n", id, (unsigned long)tid))
@@ -1637,13 +1639,13 @@ int tm_poll(
 
       for (i = 0;; i++)
         {
-        tid = disrsi(chan, &ret);
+        tid = disrsi(static_chan, &ret);
 
         if (tid == TM_NULL_TASK)
           break;
 
         if (ret != DIS_SUCCESS)
-          goto err;
+          goto tm_poll_error;
 
         if (i < num)
           {
@@ -1660,12 +1662,12 @@ int tm_poll(
       break;
 
     case TM_SPAWN:
-      tid = disrsi(chan, &ret);
+      tid = disrsi(static_chan, &ret);
 
       if (ret != DIS_SUCCESS)
         {
         DBPRT(("%s: SPAWN failed tid\n", id))
-        goto err;
+        goto tm_poll_error;
         }
 
       tidp = (tm_task_id *)ep->e_info;
@@ -1678,12 +1680,12 @@ int tm_poll(
 
     case TM_OBIT:
       obitvalp = (int *)ep->e_info;
-      *obitvalp = disrsi(chan, &ret);
+      *obitvalp = disrsi(static_chan, &ret);
 
       if (ret != DIS_SUCCESS)
         {
         DBPRT(("%s: OBIT failed obitval\n", id))
-        goto err;
+        goto tm_poll_error;
         }
 
       break;
@@ -1693,7 +1695,7 @@ int tm_poll(
 
     case TM_GETINFO:
       ihold = (struct infohold *)ep->e_info;
-      info = disrcs(chan, (size_t *)ihold->info_len, &ret);
+      info = disrcs(static_chan, (size_t *)ihold->info_len, &ret);
 
       if (ret != DIS_SUCCESS)
         {
@@ -1708,7 +1710,7 @@ int tm_poll(
 
     case TM_RESOURCES:
       rhold = (struct reschold *)ep->e_info;
-      info = disrst(chan, &ret);
+      info = disrst(static_chan, &ret);
 
       if (ret != DIS_SUCCESS)
         break;
@@ -1721,22 +1723,29 @@ int tm_poll(
 
     default:
       DBPRT(("%s: unknown event command %d\n", id, ep->e_mtype))
-      goto err;
+      goto tm_poll_error;
     }
 
-  DIS_tcp_wflush(chan);
+  DIS_tcp_wflush(static_chan);
 tm_poll_done:
 
   del_event(ep);
+  if (tcp_chan_has_data(static_chan) == FALSE)
+    {
+    DIS_tcp_cleanup(static_chan);
+    static_chan = NULL;
+    }
+
   return TM_SUCCESS;
 
-err:
+tm_poll_error:
 
   if (ep)
     del_event(ep);
 
   close(local_conn);
-
+  DIS_tcp_cleanup(static_chan);
+  static_chan = NULL;
   local_conn = -1;
 
   return TM_ENOTCONNECTED;

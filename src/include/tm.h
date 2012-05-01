@@ -52,7 +52,7 @@ typedef  struct tm_whattodo
 int tm_init(void *info,
             struct tm_roots *roots);
 
-int tm_poll(struct tcp_chan *chan, tm_event_t poll_event,
+int tm_poll(tm_event_t poll_event,
             tm_event_t *result_event,
             int  wait,
             int  *tm_errno);
