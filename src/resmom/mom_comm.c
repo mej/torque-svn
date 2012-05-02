@@ -5265,11 +5265,7 @@ void im_request(
                
                 if (local_chan != NULL)
                   DIS_tcp_cleanup(local_chan);
-                if (ep != NULL)
-                  {
-                  free(ep);
-                  ep = NULL;
-                  }
+
                 close(local_socket);
                 
                 /* We need to open our intermediate demux here */
