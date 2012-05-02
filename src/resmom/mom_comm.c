@@ -2421,6 +2421,7 @@ int im_join_job_as_sister(
       return(IM_DONE);
 
     contact_sisters(pjob,event,sister_count,radix_hosts,radix_ports);
+    pjob->ji_intermediate_join_event = event;
     job_save(pjob,SAVEJOB_FULL,momport);
     
     return(IM_DONE);
@@ -4518,7 +4519,7 @@ void im_request(
   int                  event_task = 0;
   char               **argv = NULL;
   char               **envp = NULL;
-  tm_event_t           event;
+  tm_event_t           event = 0;
   fwdevent             efwd;
   unsigned short       sender_port = -1;
   unsigned int         momport = 0;
@@ -5251,10 +5252,12 @@ void im_request(
                 if ((local_chan = DIS_tcp_setup(local_socket)) == NULL)
                   {
                   }
-                else if ((ep = event_alloc(IM_RADIX_ALL_OK, np, ep->ee_parent_event, TM_NULL_TASK)) == NULL)
-                  {
-                  }
-                else if ((ret = im_compose(local_chan,jobid,cookie,IM_RADIX_ALL_OK,ep->ee_event,TM_NULL_TASK)) != DIS_SUCCESS)
+                else if ((ret = im_compose(local_chan,
+                        jobid,
+                        cookie,
+                        IM_RADIX_ALL_OK,
+                        pjob->ji_intermediate_join_event,
+                        TM_NULL_TASK)) != DIS_SUCCESS)
                   {
                   }
                 else
@@ -5314,6 +5317,8 @@ void im_request(
               log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, jobid, log_buffer);
               }
             }
+
+          break;
           }
         
         case IM_KILL_JOB_RADIX:
@@ -5509,6 +5514,7 @@ void im_request(
             log_err(-1, __func__, "KILL_JOB_RADIX OK received on a leaf node");
             goto err;
             }
+
           close_conn(chan->sock, FALSE);
           svr_conn[chan->sock].cn_stay_open = FALSE;
           chan->sock = -1;
