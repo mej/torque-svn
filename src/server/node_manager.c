@@ -741,6 +741,7 @@ void *sync_node_jobs(
   struct batch_request *preq;
   int                   conn;
   int                   local_errno = 0;
+  int                   rc;
   unsigned long         node_addr;
   unsigned short        node_port;
 
@@ -833,8 +834,13 @@ void *sync_node_jobs(
               else
                 {
                 strcpy(preq->rq_ind.rq_delete.rq_objname, jobidstr);
-                if (issue_Drequest(conn, preq, release_req, 0) != 0)
+                rc = issue_Drequest(conn, preq, release_req, 0);
+                if (rc == PBSE_MEM_MALLOC)
+                  {
+                  sprintf(log_buf, "%d  freeing %ld", rc, (long)preq);
+                  log_record(PBSEVENT_DEBUG, PBS_EVENTCLASS_JOB, __func__, log_buf);
                   free_br(preq);
+                  }
                 }
               }
             }
