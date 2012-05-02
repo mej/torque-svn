@@ -2285,7 +2285,7 @@ int svr_is_request(
     {
     close_conn(chan->sock, FALSE);
     log_err(errno,__func__,"Cannot get socket name using getpeername\n");
-    return PBSE_SOCKET_INFORMATION;
+    return PBSE_SOCKET_CLOSE;
     }
 
   addr = (struct sockaddr_in *)&s_addr;
@@ -2358,7 +2358,7 @@ int svr_is_request(
       }
     
     close_conn(chan->sock, FALSE);
-    return PBSE_CLIENT_INVALID;
+    return PBSE_SOCKET_CLOSE;
     }
 
   if (LOGLEVEL >= 3)
@@ -2529,7 +2529,7 @@ int svr_is_request(
 
   unlock_node(node, __func__, "close", LOGLEVEL);
   
-  return PBSE_NONE;
+  return PBSE_SOCKET_CLOSE;
 
 err:
 

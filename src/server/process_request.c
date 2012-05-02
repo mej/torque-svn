@@ -935,8 +935,7 @@ int dispatch_request(
     case PBS_BATCH_AuthenUser:
 
       /* determine if user is valid */
-      /*rc = req_authenuser( request); */
-      req_authenuser(request); 
+      rc = req_authenuser( request); 
 
       break;
 

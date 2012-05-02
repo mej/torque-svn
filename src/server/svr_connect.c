@@ -199,7 +199,7 @@ int svr_connect(
   /* establish socket connection to specified host */
 
   sock = client_to_svr(hostaddr, port, 1, EMsg);
- 
+
   time(&ETime);
 
   if (LOGLEVEL >= 2)
