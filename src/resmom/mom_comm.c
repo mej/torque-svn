@@ -7982,21 +7982,17 @@ void fork_demux(
   job *pjob)
 
   {
-  char *id = "fork_demux";
   pid_t cpid;
   struct timeval timeout;
   int i, retries;
   int maxfd;
-  int n, ret;
+  int n;
   int newsock;
   int fd1, fd2;
   int im_mom_stdout, im_mom_stderr;
-  char *momhost;
   fd_set selset;
   pid_t  parent;
   u_long ipaddr;
-  struct addrinfo *res;
-  unsigned char nu;
 	struct sigaction act;
   struct routefd  *routem;
   int open_sockets = 0;
@@ -8047,47 +8043,14 @@ void fork_demux(
 
   parent = getppid();
 
-  cpid = fork();
+  cpid = fork_me(-1);
   if (cpid)
     {
+    sleep(2);
     return;
     }
 
-
-  /* we need to open a stream to our parent mom for stderr and stdout */
-  momhost = pjob->ji_sisters[0].hn_host; /* ji_sisters[0] is always the mom who called us */
-
-  if (momhost == NULL)
-    {
-    fprintf(stderr, "job %s has no stream to MS",
-            pjob->ji_qs.ji_jobid);
-
-    log_err(-1, id, log_buffer);
-    close(im_mom_stdout);
-    close(im_mom_stderr);
-    _exit(5);
-    }
-
-  ret = getaddrinfo(momhost, NULL, NULL, &res);
-  if (ret)
-    {
-    fprintf(stderr,"get addrinfo failed in im_demux_thread: %d\n", ret);
-    close(im_mom_stdout);
-    close(im_mom_stderr);
-    _exit(5);
-    }
-
-  nu = (unsigned char)res->ai_addr->sa_data[2];
-  ipaddr = (ulong)nu;
-  ipaddr = ipaddr << 8;
-  nu = (unsigned char)res->ai_addr->sa_data[3];
-  ipaddr = ipaddr + (ulong)nu;
-  ipaddr = ipaddr << 8;
-  nu = (unsigned char)res->ai_addr->sa_data[4];
-  ipaddr = ipaddr + (ulong)nu;
-  ipaddr = ipaddr << 8;
-  nu = (unsigned char)res->ai_addr->sa_data[5];
-  ipaddr = ipaddr + (ulong)nu;
+  ipaddr = pjob->ji_sisters[0].sock_addr.sin_addr.s_addr;
 
   /*  maxfd = sysconf(_SC_OPEN_MAX); */
 
@@ -8116,7 +8079,7 @@ void fork_demux(
   retries = 0;
   do
     {
-    fd1 = open_demux(htonl(ipaddr), pjob->ji_portout);
+    fd1 = open_demux(ipaddr, pjob->ji_portout);
     if (fd1 >= 0)
       break;
 
@@ -8133,7 +8096,7 @@ void fork_demux(
     }
 
 
-  fd2 = open_demux(htonl(ipaddr), pjob->ji_porterr);
+  fd2 = open_demux(ipaddr, pjob->ji_porterr);
   if (fd2 < 0)
     {
     perror("cannot open mux stderr port");

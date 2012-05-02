@@ -595,7 +595,7 @@ void exec_bail(
   }   /* END exec_bail() */
 
 
-#define RETRY 3
+#define RETRY 10
 
 int open_demux(
 
