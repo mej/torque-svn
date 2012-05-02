@@ -733,12 +733,13 @@ int issue_Drequest(
     }  /* END switch (request->rq_type) */
   if ((tmp_rc = DIS_reply_read(chan, &request->rq_reply)) != 0)
     {
+    sprintf(log_buf, "DIS_reply_read failed: %d", tmp_rc);
+    log_record(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, __func__, log_buf);
     request->rq_reply.brp_code = tmp_rc;
     request->rq_reply.brp_choice = BATCH_REPLY_CHOICE_NULL;
-    }
-  connection_clear(conn);
-  close_conn(chan->sock, FALSE);
+    }  
   DIS_tcp_cleanup(chan);
+  svr_disconnect(conn);
   if (func != NULL)
     dispatch_task(ptask);
   return(rc);

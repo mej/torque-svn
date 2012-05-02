@@ -93,11 +93,15 @@
 
 #include <sys/types.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
 #include "libpbs.h"
 #include "list_link.h"
 #include "dis.h"
 #include "batch_request.h"
 #include "tcp.h" /* tcp_chan */
+#include "../Liblog/pbs_log.h"
+#include "log.h"
 
 int decode_DIS_replySvr(
 
@@ -107,6 +111,7 @@ int decode_DIS_replySvr(
   {
   int        ct;
   int        i;
+  char       log_buf[128];
 
   struct brp_select    *psel;
 
@@ -116,10 +121,16 @@ int decode_DIS_replySvr(
   int        rc = 0;
 
   /* first decode "header" consisting of protocol type and version */
+  usleep(100);
 
   i = disrui(chan, &rc);
 
-  if (rc != 0) return rc;
+  if (rc != 0) 
+    {
+    sprintf(log_buf, "failed to get PROT_TYPE: %d, (rc: %d)", i, rc);
+    log_record(PBSEVENT_JOB, PBS_EVENTCLASS_REQUEST, __func__, log_buf);
+    return rc;
+    }
 
   if (i != PBS_BATCH_PROT_TYPE) return DIS_PROTO;
 
