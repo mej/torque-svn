@@ -185,7 +185,7 @@ int relay_to_mom(
       (node->nd_state & INUSE_DOWN))
     {
     unlock_node(node, __func__, "no rely mom", LOGLEVEL);
-    free_br(request);
+       free_br(request);
     return(PBSE_NORELYMOM);
     }
 
@@ -455,8 +455,17 @@ int issue_Drequest(
       log_err(PBSE_MEM_MALLOC, __func__,
           "Could not allocate memory for socket buffer");
       close_conn(sock, FALSE);
-      return -1;
+      return PBSE_MEM_MALLOC;
       }
+    }
+
+  if (conn == PBS_LOCAL_CONNECTION)
+    {
+    /* the request should be issued to ourself */
+
+    dispatch_request(PBS_LOCAL_CONNECTION, request);
+
+    return(0);
     }
 
   if (func != NULL)
@@ -472,17 +481,8 @@ int issue_Drequest(
       close_conn(sock, FALSE);
       if (chan != NULL)
         DIS_tcp_cleanup(chan);
-      return(-1);
+      return(PBSE_MEM_MALLOC);
       }
-    }
-
-  if (conn == PBS_LOCAL_CONNECTION)
-    {
-    /* the request should be issued to ourself */
-
-    dispatch_request(PBS_LOCAL_CONNECTION, request);
-
-    return(0);
     }
 
   /* the request is bound to another server, encode/send the request */
