@@ -5404,6 +5404,7 @@ int tcp_read_proto_version(
       log_err(rc, __func__, log_buffer);
       break;
     }  /* END switch (rc) */
+
   if (rc == PBSE_NONE)
     {
     *version = disrsi(chan, &rc);

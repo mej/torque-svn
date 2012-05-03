@@ -544,6 +544,7 @@ struct job
   tm_task_id     ji_taskid; /* generate task id's for job */
   char           ji_altid[PBS_MAXSVRJOBID + 1];
   tm_event_t     ji_obit; /* event for end-of-job */
+  tm_event_t     ji_intermediate_join_event; /* event to write back from join job for intermediate moms */
   hnodent        *ji_hosts; /* ptr to job host management stuff */
   hnodent        *ji_sisters; /* ptr to job host management stuff for intermediate moms */
   vnodent        *ji_vnods; /* ptr to job vnode management stuff */
