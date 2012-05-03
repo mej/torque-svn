@@ -10,6 +10,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       they will be deleted.
   b - bugzilla #182. The serverdb will now correctly write out memory allocated.
   b - bugzilla #188. The deadlock when using job logging is resolved
+  b - bugzilla #184. pbs_server will no longer log an erroneous error when the 12th 
+      job array is submitted.
 
 4.0.1
   b - Fix trqauthd init scripts to use correct path to trqauthd.

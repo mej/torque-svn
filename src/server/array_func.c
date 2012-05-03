@@ -1883,7 +1883,7 @@ int insert_array(
 
   pthread_mutex_lock(allarrays.allarrays_mutex);
 
-  if ((rc = insert_thing(allarrays.ra,pa)) == ENOMEM)
+  if ((rc = insert_thing(allarrays.ra,pa)) == -1)
     {
     log_err(rc,id,"No memory to resize the array...SYSTEM FAILURE\n");
     }
