@@ -12,6 +12,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   b - bugzilla #188. The deadlock when using job logging is resolved
   b - bugzilla #184. pbs_server will no longer log an erroneous error when the 12th 
       job array is submitted.
+  e - Allow pbs_mom to change users group on stderr/stdout files. Enabled by configuring
+      Torque with CFLAGS='-DRESETGROUP'. TRQ-908.
 
 4.0.1
   b - Fix trqauthd init scripts to use correct path to trqauthd.
