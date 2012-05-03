@@ -1272,6 +1272,7 @@ int delete_whole_array(
   {
   int i;
   int num_skipped = 0;
+  int num_jobs = 0;
 
   job *pjob;
 
@@ -1287,6 +1288,7 @@ int delete_whole_array(
       }
     else
       {
+      num_jobs++;
       if (pjob->ji_qs.ji_state >= JOB_STATE_EXITING)
         {
         /* invalid state for request,  skip */
@@ -1303,6 +1305,9 @@ int delete_whole_array(
         }
       }
     }
+
+  if (num_jobs == 0)
+    return(NO_JOBS_IN_ARRAY);
 
   return(num_skipped);
   } /* END delete_whole_array() */

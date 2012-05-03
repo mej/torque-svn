@@ -1790,7 +1790,9 @@ int pbsd_init(
   while ((pa = next_array(&iter)) != NULL)
     {
     int job_template_exists = FALSE;
+
     pthread_mutex_lock(pa->ai_mutex);
+
     if (LOGLEVEL >= 7)
       {
       sprintf(log_buf, "%s: locked ai_mutex", __func__);
@@ -1803,9 +1805,21 @@ int pbsd_init(
       pthread_mutex_unlock(pjob->ji_mutex);
       }
 
+    /* if no jobs were recovered, delete this array */
+    if (pa->jobs_recovered == 0)
+      {
+      if ((pjob = find_job(pa->ai_qs.parent_id)) != NULL)
+        job_purge(pjob);
+
+      array_delete(pa);
+
+      /* move on to the next array */
+      continue;
+      }
+
     /* see if we need to upgrade the array version. */
     /* We will upgrade from version 3 or later */
-    if(pa->ai_qs.struct_version == 3)
+    if (pa->ai_qs.struct_version == 3)
       {
       pa->ai_qs.struct_version = ARRAY_QS_STRUCT_VERSION;
       pa->ai_qs.num_purged = pa->ai_qs.num_jobs - pa->jobs_recovered;

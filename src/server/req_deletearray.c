@@ -204,7 +204,7 @@ void req_deletearray(
   struct work_task *ptask;
   char              log_buf[LOCAL_LOG_BUF_SIZE];
 
-  int               num_skipped;
+  int               num_skipped = 0;
   char              owner[PBS_MAXUSER + 1];
   time_t            time_now = time(NULL);
 
@@ -285,18 +285,11 @@ void req_deletearray(
       log_record(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, __func__, log_buf);
       }
 
-    num_skipped = delete_whole_array(pa);
+    if ((num_skipped = delete_whole_array(pa)) == NO_JOBS_IN_ARRAY)
+      array_delete(pa);
     }
 
-  pthread_mutex_unlock(pa->ai_mutex);
-  if (LOGLEVEL >= 7)
-    {
-    sprintf(log_buf, "%s: unlocked ai_mutex", __func__);
-    log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, __func__, log_buf);
-    }
-
-  /* check if the array is gone */
-  if ((pa = get_array(preq->rq_ind.rq_delete.rq_objname)) != NULL)
+  if (num_skipped != NO_JOBS_IN_ARRAY)
     {
     pthread_mutex_unlock(pa->ai_mutex);
     if (LOGLEVEL >= 7)
@@ -304,26 +297,36 @@ void req_deletearray(
       sprintf(log_buf, "%s: unlocked ai_mutex", __func__);
       log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, __func__, log_buf);
       }
-
-    /* some jobs were not deleted.  They must have been running or had
-       JOB_SUBSTATE_TRANSIT */
-    if (num_skipped != 0)
+    
+    /* check if the array is gone */
+    if ((pa = get_array(preq->rq_ind.rq_delete.rq_objname)) != NULL)
       {
-      ptask = set_task(WORK_Timed, time_now + 10, array_delete_wt, preq, FALSE);
-
-      if (ptask)
+      pthread_mutex_unlock(pa->ai_mutex);
+      if (LOGLEVEL >= 7)
         {
-        return;
+        sprintf(log_buf, "%s: unlocked ai_mutex", __func__);
+        log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, __func__, log_buf);
+        }
+      
+      /* some jobs were not deleted.  They must have been running or had
+         JOB_SUBSTATE_TRANSIT */
+      if (num_skipped != 0)
+        {
+        ptask = set_task(WORK_Timed, time_now + 10, array_delete_wt, preq, FALSE);
+        
+        if (ptask)
+          {
+          return;
+          }
         }
       }
     }
-
+  
   /* now that the whole array is deleted, we should mail the user if necessary */
-
   reply_ack(preq);
 
   return;
-  }
+  } /* END req_deletearray() */
 
 
 

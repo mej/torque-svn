@@ -22,6 +22,7 @@
 #define ARRAY_TOO_LARGE    -5
 #define INVALID_SLOT_LIMIT -6
 #define INITIAL_NUM_ARRAYS  50
+#define NO_JOBS_IN_ARRAY   -21
 
 #define ARRAY_FILE_SUFFIX ".AR"
 
