@@ -9,6 +9,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   b - bugzilla #185. Empty arrays should no longer be loaded and now when qdel'ed 
       they will be deleted.
   b - bugzilla #182. The serverdb will now correctly write out memory allocated.
+  b - bugzilla #188. The deadlock when using job logging is resolved
 
 4.0.1
   b - Fix trqauthd init scripts to use correct path to trqauthd.
