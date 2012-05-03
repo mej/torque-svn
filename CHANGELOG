@@ -48,6 +48,11 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   b - Fix server segfault for where mom in nodes file is not in mom_hierarchy. TRQ-873.
   b - routing to a routing queue now works again, TRQ-905, bugzilla 186
   b - Fix server segfaults that happened doing qhold for blcr job. TRQ-900.
+  b - Fixed a SIGABORT when doing a double free in sync_node_jobs.
+  b - Fixed a problem where stdout and stderr data was not getting sent back
+      up the tree on a job with job_radix set.The problem was that pbs_demux
+      on the intermediate MOMs would not always be ready when subordinate
+      nodes started relaying data.
 
 4.0.0
   e - make a threadpool for TORQUE server. The number of threads is 
