@@ -912,11 +912,11 @@ int get_cpuset_strings(
   int     ratio = 0;
   char    tmpStr[MAXPATHLEN];
   int     numa_index;
-  char    *mem_idx_str;
 
 #ifdef NUMA_SUPPORT
   numanode *numa_tmp;
   int     mem_index;
+  char    *mem_idx_str;
 #endif
 
   if ((pjob == NULL) || 
