@@ -14,6 +14,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       job array is submitted.
   e - Allow pbs_mom to change users group on stderr/stdout files. Enabled by configuring
       Torque with CFLAGS='-DRESETGROUP'. TRQ-908.
+  e - Have the parent intermediate mom process wait for the child to open the demux before 
+      moving on for more precise synchronization for radix jobs.
 
 4.0.1
   b - Fix trqauthd init scripts to use correct path to trqauthd.
