@@ -16,6 +16,9 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       Torque with CFLAGS='-DRESETGROUP'. TRQ-908.
   e - Have the parent intermediate mom process wait for the child to open the demux before 
       moving on for more precise synchronization for radix jobs.
+  e - Changed the way jobs queued in a routing queue are updated. A thread is now launched
+      at startup and by default checks every 10 seconds to see if there are jobs 
+      in the routing queues that can be promoted to execution queues.
 
 4.0.1
   b - Fix trqauthd init scripts to use correct path to trqauthd.
