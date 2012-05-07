@@ -1739,8 +1739,7 @@ int tm_adopt(char *id, int adoptCmd, pid_t pid)
     return TM_ENOTCONNECTED;
 
   /* write the pid so the adopted process can be part of the cpuset if needed */
-
-  if (diswsi(local_conn,sid) != DIS_SUCCESS)
+  if (diswsi(local_conn, pid) != DIS_SUCCESS)
     return TM_ENOTCONNECTED;
 
   /* send job or alternative id */
