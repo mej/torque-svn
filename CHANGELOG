@@ -19,6 +19,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   e - Changed the way jobs queued in a routing queue are updated. A thread is now launched
       at startup and by default checks every 10 seconds to see if there are jobs 
       in the routing queues that can be promoted to execution queues.
+  b - Fix so pbs_mom will compile when configured with --with-nvml-lib=/usr/lib and
+      --with-nvml-include. TRQ-926.
 
 4.0.1
   b - Fix trqauthd init scripts to use correct path to trqauthd.
