@@ -1682,7 +1682,8 @@ int is_gpustat_get(
   int        gpuidx = -1;
   char       gpuinfo[2048];
   int        need_delimiter;
-  int        gpucnt = 0;
+  int        reportedgpucnt = 0;
+  int        startgpucnt = 0;
   int        drv_ver;
 
   if (LOGLEVEL >= 7)
@@ -1692,6 +1693,9 @@ int is_gpustat_get(
 
     log_record(PBSEVENT_SCHED, PBS_EVENTCLASS_REQUEST, __func__, log_buf);
     }
+
+  /* save current gpu count for node */
+  startgpucnt = np->nd_ngpus;
 
   /*
    *  Before filling the "temp" attribute, initialize it.
@@ -1804,7 +1808,7 @@ int is_gpustat_get(
 
       sprintf(gpuinfo, "gpu[%d]=gpu_id=%s;", gpuidx, gpuid);
       need_delimiter = FALSE;
-      gpucnt++;
+      reportedgpucnt++;
       np->nd_gpusn[gpuidx].driver_ver = drv_ver;
 
       /* mark that this gpu node is not virtual */
@@ -1934,10 +1938,11 @@ int is_gpustat_get(
       }
     }
 
-  /* maintain the gpu count */
-  if (gpucnt != np->nd_ngpus)
+  /* maintain the gpu count, if it has changed we need to update the nodes file */
+
+  if (reportedgpucnt != startgpucnt)
     {
-    np->nd_ngpus = gpucnt;
+    np->nd_ngpus = reportedgpucnt;
 
     /* update the nodes file */
     update_nodes_file(np);
