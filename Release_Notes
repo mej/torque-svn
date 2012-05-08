@@ -44,6 +44,22 @@ OVERVIEW
 + New Feature Highlights +
 
 *******************************************************
+What is new in 4.0.1
+
+  Aside from fixing several bugs which can be found in the CHANGELOG
+  considerable code refactoring has been done with 4.0.1.
+
+  The biggest change is the way TORQUE handles new requests on port 15001
+  in pbs_server.  Previously, new requests coming to port 15001 had to wait
+  for a select to be called in wait_request which is part of the main_loop
+  function on the server. This allowed only one connect request at a time
+  to be serviced each time through the loop. This has been replaced by a
+  listening thread which accepts each new connection as it happens and then
+  creates a new thread to process the incoming request. This dramatically
+  increases the number of new requests which can be handled by TORQUE.
+  The interface between Moab/TORQUE and Maui/TORQUE does not yet take advantage
+  of this increased capacity. Jobs submitted with Maui or Moab will see an
+  improvement but better throughput is expected in future releases.
 
 
 The following is a summary of key new features in TORQUE 4.0

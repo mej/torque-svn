@@ -437,7 +437,6 @@ int process_pbs_server_port(
         log_err(-1, __func__, log_buf);
         }
 
-      /*close_conn(sock, FALSE);*/
       rc = PBSE_SOCKET_DATA;
 
       break;

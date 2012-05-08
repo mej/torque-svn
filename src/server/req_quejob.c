@@ -1415,7 +1415,6 @@ int req_quejob(
     /* reply failed, purge the job and close the connection */
     rc = PBSE_SOCKET_WRITE; /* Re-write reply_jobid to return the error */
     unlock_queue(pque, __func__, "reply fail", LOGLEVEL);
-    /*close_conn(sock,FALSE);*/
     job_purge(pj);
     return rc;
     }
@@ -1880,7 +1879,6 @@ int req_rdytocommit(
       errno,
       strerror(errno));
     log_err(rc, __func__, log_buf);
-    /*close_conn(sock,FALSE);*/
     if ((pj = find_job(jobid)) != NULL)
       job_purge(pj);
     return rc;
