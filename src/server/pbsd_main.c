@@ -1186,7 +1186,7 @@ void monitor_route_retry_thread()
   {
   if (pthread_kill(route_retry_thread_id, 0) == ESRCH)
     {
-    start_accept_thread();
+    start_routing_retry_thread();
     }
   }
 
