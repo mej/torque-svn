@@ -4,6 +4,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   e - Allow pbs_mom to change users group on stderr/stdout files. Enabled by configuring
       Torque with CFLAGS='-DRESETGROUP'. TRQ-908. (backported from 4.0.2)
   b - Fix pbs_track to add its process to the cpuset as well (backported from 4.0.2)
+  b - Fix so gpu count gets written out to server nodes file when using
+      --enable-nvidia-gpus. TRQ-927. (backported from 4.0.2)
 
 3.0.5
   b - fix for writing too much data when job_script is saved to job log.

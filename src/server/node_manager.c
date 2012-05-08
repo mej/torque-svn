@@ -1589,7 +1589,8 @@ int is_gpustat_get(
   int        gpuidx = -1;
   char       gpuinfo[2048];
   int        need_delimiter;
-  int        gpucnt = 0;
+  int        reportedgpucnt = 0;
+  int        startgpucnt = 0;
   int        drv_ver;
 
   extern int TConnGetSelectErrno();
@@ -1611,6 +1612,9 @@ int is_gpustat_get(
     {
     return(DIS_EOF);
     }
+
+  /* save current gpu count for node */
+  startgpucnt = np->nd_ngpus;
 
   /*
    *  Before filling the "temp" attribute, initialize it.
@@ -1730,7 +1734,7 @@ int is_gpustat_get(
 
       sprintf(gpuinfo, "gpu[%d]=gpu_id=%s;", gpuidx, gpuid);
       need_delimiter = FALSE;
-      gpucnt++;
+      reportedgpucnt++;
       np->nd_gpusn[gpuidx].driver_ver = drv_ver;
 
       /* mark that this gpu node is not virtual */
@@ -1862,11 +1866,11 @@ int is_gpustat_get(
         }
       }
 
-  /* maintain the gpu count */
+  /* maintain the gpu count, if it has changed we need to update the nodes file */
 
-  if (gpucnt != np->nd_ngpus)
+  if (reportedgpucnt != startgpucnt)
     {
-    np->nd_ngpus = gpucnt;
+    np->nd_ngpus = reportedgpucnt;
 
     /* update the nodes file */
 
