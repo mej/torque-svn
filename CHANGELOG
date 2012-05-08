@@ -6,6 +6,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   b - Fix pbs_track to add its process to the cpuset as well (backported from 4.0.2)
   b - Fix so gpu count gets written out to server nodes file when using
       --enable-nvidia-gpus. TRQ-927. (backported from 4.0.2)
+  b - collapse the cpuset buffer into ranges in order to allow very large cpu ranges to
+      be written into the cpuset. TRQ-928
 
 3.0.5
   b - fix for writing too much data when job_script is saved to job log.

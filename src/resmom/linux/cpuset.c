@@ -847,7 +847,9 @@ int get_exclusive_cpuset_strings(
     prev_numa_index = numa_index;
 
     if (CpuStr[0] != '\0')
+      {
       strcat(CpuStr,",");
+      }
 
     sprintf(buf,"%d-%d",
       numa_nodes[numa_index].cpu_offset,
@@ -907,10 +909,10 @@ int get_cpuset_strings(
   char   *id = "get_cpuset_strings";
 
   vnodent *np = pjob->ji_vnods;
-  int     j;
-  int     cpu_index;
-  int     ratio = 0;
-  char    tmpStr[MAXPATHLEN];
+  int      j;
+  int      cpu_index;
+  int      ratio = 0;
+  char     tmpStr[MAXPATHLEN];
   int     numa_index;
 
 #ifdef NUMA_SUPPORT
@@ -1217,6 +1219,93 @@ int create_vnodesets(
 
 
 
+void collapse_cpusbuf(
+
+  char         *cpusbuf)
+
+  {
+  char         *copy = strdup(cpusbuf);
+  char         *tmp;
+  char         *ptr;
+  int           low_index = 0;
+  int           high_index = 0;
+  int           current;
+  unsigned int  len = strlen(cpusbuf);
+  char          buf[20];
+
+  tmp = calloc(1, len + 1);
+
+  ptr = strtok(copy, ",");
+
+  while (ptr != NULL)
+    {
+    current = atoi(ptr);
+
+    if (low_index == 0)
+      {
+      high_index = current;
+      low_index = current;
+      }
+    else if (current == low_index - 1)
+      {
+      low_index = current;
+      }
+    else if (current == high_index + 1)
+      {
+      low_index = current;
+      }
+    else
+      {
+      if (tmp[0] != '\0')
+        strcat(tmp, ",");
+
+      if (low_index != high_index)
+        {
+        /* create the range */
+        snprintf(buf, sizeof(buf), "%d-%d", low_index, high_index);
+
+        strcat(tmp, buf);
+        }
+      else
+        {
+        /* handle the single, non-contiguous case */
+        snprintf(buf, sizeof(buf), "%d", low_index);
+
+        strcat(tmp, buf);
+        }
+
+      /* reset the values */
+      low_index = current;
+      high_index = current;
+      }
+
+    ptr = strtok(NULL, ",");
+    }
+
+  if (tmp[0] != '\0')
+    strcat(tmp, ",");
+  
+  if (low_index != high_index)
+    {
+    /* create the range */
+    snprintf(buf, sizeof(buf), "%d-%d", low_index, high_index);
+    
+    strcat(tmp, buf);
+    }
+  else
+    {
+    /* handle the single, non-contiguous case */
+    snprintf(buf, sizeof(buf), "%d", low_index);
+    
+    strcat(tmp, buf);
+    }
+
+  strcpy(cpusbuf, tmp);
+  free(tmp);
+  } /* END collapse_cpusbuf() */
+
+
+
 
 /**
  * adds the cpus to the jobset
@@ -1233,10 +1322,10 @@ int add_cpus_to_jobset(
   {
   FILE *fd;
   char *id = "add_cpus_to_jobset";
-  char  cpusbuf[MAXPATHLEN+1];
-  char  tmppath[MAXPATHLEN+1];
+  char  cpusbuf[MAXPATHLEN * 10]; /* 10240 is big enough for the foreseeable future */
+  char  tmppath[MAXPATHLEN + 1];
 #ifdef NUMA_SUPPORT
-  char  memsbuf[MAXPATHLEN+1];
+  char  memsbuf[MAXPATHLEN * 10]; /* 10240 is big enough for the foreseeable future */
 #endif  /* end NUMA_SUPPORT */
 
   if ((pjob == NULL) ||
@@ -1248,9 +1337,12 @@ int add_cpus_to_jobset(
   /* Make the string defining the CPUs to add into the jobset */
 #ifdef NUMA_SUPPORT
   get_cpuset_strings(pjob,cpusbuf,memsbuf);
+  collapse_cpusbuf(memsbuf);
 #else
   get_cpu_string(pjob,cpusbuf);
 #endif  /* end NUMA_SUPPORT */
+
+  collapse_cpusbuf(cpusbuf);
 
   snprintf(tmppath,sizeof(tmppath),"%s/cpus",path);
 
