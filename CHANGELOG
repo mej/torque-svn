@@ -25,6 +25,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   b - Fix so gpu count gets written out to server nodes file when using
       --enable-nvidia-gpus. TRQ-927.
   b - change pbs_server to listen on all interfaces. TRQ-923
+  b - Fixed memory leaks in generate_server_gpustats_smi. Only used with --enable-nvidia-gpus
+      is on.
 
 4.0.1
   b - Fix trqauthd init scripts to use correct path to trqauthd.
