@@ -2573,6 +2573,7 @@ void generate_server_gpustatus_smi(
     strcat(buffer, EP->Val);
     outptr = buffer;
     outptr += strlen(buffer) + 1;
+    MXMLDestroyE(&EP);
     }
   else
     {
@@ -2587,6 +2588,7 @@ void generate_server_gpustatus_smi(
     strcat(outptr, "driver_ver=");
     strcat(outptr, EP->Val);
     outptr += strlen(outptr) + 1;
+    MXMLDestroyE(&EP);
     }
   else
     {
@@ -2612,10 +2614,10 @@ void generate_server_gpustatus_smi(
           {
           gpuid++;
           }
+        MXMLDestroyE(&EP);
 
         if (MOMNvidiaDriverVersion == 260)
           {
-          gpuid = atoi(EP->AVal[0]);
           /* Get and add mode rules information for driver 260 */
 
           if (!have_modes)
@@ -2653,6 +2655,7 @@ void generate_server_gpustatus_smi(
             strcat(outptr, "gpu_product_name=");
             strcat(outptr, EP->Val);
             outptr += strlen(outptr) + 1;
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2667,6 +2670,7 @@ void generate_server_gpustatus_smi(
             strcat(outptr, "gpu_pci_device_id=");
             strcat(outptr, EP->Val);
             outptr += strlen(outptr) + 1;
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2681,6 +2685,7 @@ void generate_server_gpustatus_smi(
             strcat(outptr, "gpu_pci_location_id=");
             strcat(outptr, EP->Val);
             outptr += strlen(outptr) + 1;
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2695,6 +2700,7 @@ void generate_server_gpustatus_smi(
             strcat(outptr, "gpu_display=");
             strcat(outptr, EP->Val);
             outptr += strlen(outptr) + 1;
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2709,6 +2715,7 @@ void generate_server_gpustatus_smi(
             strcat(outptr, "gpu_temperature=");
             strcat(outptr, EP->Val);
             outptr += strlen(outptr) + 1;
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2723,6 +2730,7 @@ void generate_server_gpustatus_smi(
             strcat(outptr, "gpu_fan_speed=");
             strcat(outptr, EP->Val);
             outptr += strlen(outptr) + 1;
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2737,6 +2745,7 @@ void generate_server_gpustatus_smi(
             strcat(outptr, "gpu_utilization=");
             strcat(outptr, EP->Val);
             outptr += strlen(outptr) + 1;
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2750,6 +2759,7 @@ void generate_server_gpustatus_smi(
             strcat(outptr, "gpu_memory_utilization=");
             strcat(outptr, EP->Val);
             outptr += strlen(outptr) + 1;
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2767,6 +2777,7 @@ void generate_server_gpustatus_smi(
               strcat(outptr, "gpu_single_bit_ecc_errors=");
               strcat(outptr, EP->Val);
               outptr += strlen(outptr) + 1;
+              MXMLDestroyE(&EP);
               }
 
             tmpptr1 = strstr(dataptr, "<double_bit>");
@@ -2777,6 +2788,7 @@ void generate_server_gpustatus_smi(
               strcat(outptr, "gpu_double_bit_ecc_errors=");
               strcat(outptr, EP->Val);
               outptr += strlen(outptr) + 1;
+              MXMLDestroyE(&EP);
               }
             }
           else
@@ -2796,6 +2808,7 @@ void generate_server_gpustatus_smi(
             strcat(outptr, "gpu_product_name=");
             strcat(outptr, EP->Val);
             outptr += strlen(outptr) + 1;
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2810,6 +2823,7 @@ void generate_server_gpustatus_smi(
             strcat(outptr, "gpu_display=");
             strcat(outptr, EP->Val);
             outptr += strlen(outptr) + 1;
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2824,6 +2838,7 @@ void generate_server_gpustatus_smi(
             strcat(outptr, "gpu_pci_device_id=");
             strcat(outptr, EP->Val);
             outptr += strlen(outptr) + 1;
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2838,6 +2853,7 @@ void generate_server_gpustatus_smi(
             strcat(outptr, "gpu_pci_location_id=");
             strcat(outptr, EP->Val);
             outptr += strlen(outptr) + 1;
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2852,6 +2868,7 @@ void generate_server_gpustatus_smi(
             strcat(outptr, "gpu_fan_speed=");
             strcat(outptr, EP->Val);
             outptr += strlen(outptr) + 1;
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2868,6 +2885,7 @@ void generate_server_gpustatus_smi(
               strcat(outptr, "gpu_memory_total=");
               strcat(outptr, EP->Val);
               outptr += strlen(outptr) + 1;
+              MXMLDestroyE(&EP);
               }
 
             tmpptr1 = strstr(dataptr, "<used>");
@@ -2877,6 +2895,7 @@ void generate_server_gpustatus_smi(
               strcat(outptr, "gpu_memory_used=");
               strcat(outptr, EP->Val);
               outptr += strlen(outptr) + 1;
+              MXMLDestroyE(&EP);
               }
             }
           else
@@ -2912,6 +2931,7 @@ void generate_server_gpustatus_smi(
               {
               nvidia_gpu_modes[gpuid] = -1;
               }
+            MXMLDestroyE(&EP);
             }
           else
             {
@@ -2929,6 +2949,7 @@ void generate_server_gpustatus_smi(
               strcat(outptr, "gpu_utilization=");
               strcat(outptr, EP->Val);
               outptr += strlen(outptr) + 1;
+              MXMLDestroyE(&EP);
               }
 
             tmpptr1 = strstr(dataptr, "<memory_util>");
@@ -2938,6 +2959,7 @@ void generate_server_gpustatus_smi(
               strcat(outptr, "gpu_memory_utilization=");
               strcat(outptr, EP->Val);
               outptr += strlen(outptr) + 1;
+              MXMLDestroyE(&EP);
               }
             }
           else
@@ -2955,6 +2977,7 @@ void generate_server_gpustatus_smi(
               strcat(outptr, "gpu_ecc_mode=");
               strcat(outptr, EP->Val);
               outptr += strlen(outptr) + 1;
+              MXMLDestroyE(&EP);
               }
             }
           else
@@ -2976,6 +2999,7 @@ void generate_server_gpustatus_smi(
                 strcat(outptr, "gpu_single_bit_ecc_errors=");
                 strcat(outptr, EP->Val);
                 outptr += strlen(outptr) + 1;
+                MXMLDestroyE(&EP);
                 }
 
               tmpptr2 = strstr(tmpptr1, "<double_bit>");
@@ -2986,6 +3010,7 @@ void generate_server_gpustatus_smi(
                 strcat(outptr, "gpu_double_bit_ecc_errors=");
                 strcat(outptr, EP->Val);
                 outptr += strlen(outptr) + 1;
+                MXMLDestroyE(&EP);
                 }
               }
             }
@@ -3005,6 +3030,7 @@ void generate_server_gpustatus_smi(
               strcat(outptr, "gpu_temperature=");
               strcat(outptr, EP->Val);
               outptr += strlen(outptr) + 1;
+              MXMLDestroyE(&EP);
               }
             }
           else

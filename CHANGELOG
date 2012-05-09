@@ -8,6 +8,9 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       --enable-nvidia-gpus. TRQ-927. (backported from 4.0.2)
   b - collapse the cpuset buffer into ranges in order to allow very large cpu ranges to
       be written into the cpuset. TRQ-928
+  b - fixed a memory leak on the MOM when running with --enable-nvidia-gpus. TRQ-904
+      (merged from revision 6125 of 2.5-fixes)
+     
 
 3.0.5
   b - fix for writing too much data when job_script is saved to job log.
