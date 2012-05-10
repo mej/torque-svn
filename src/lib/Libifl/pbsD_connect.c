@@ -96,6 +96,7 @@
 #include <stdio.h>
 #include <pwd.h>
 #include <string.h>
+#include <ctype.h>
 #include <signal.h>
 #include <netdb.h>
 #include <unistd.h>
@@ -1223,6 +1224,9 @@ int pbs_connect(char *server_name_ptr)    /* I (optional) */
 
     if (tp && tp[0])
       {
+      /* Trim any leading space */
+      while(isspace(*tp)) tp++;
+
       memset(current_name, 0, sizeof(current_name));
       strncpy(current_name, tp, sizeof(current_name) - 1);
 

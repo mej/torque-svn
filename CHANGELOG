@@ -10,6 +10,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       be written into the cpuset. TRQ-928
   b - fixed a memory leak on the MOM when running with --enable-nvidia-gpus. TRQ-904
       (merged from revision 6125 of 2.5-fixes)
+  b - Fix so "pbs_server --ha" does not fail when checking path for server.lock file. 
+      TRQ-907. (backported from 4.0.2)
      
 
 3.0.5

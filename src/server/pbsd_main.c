@@ -2080,7 +2080,7 @@ char *extract_dir(
 
   Dir[0] = '\0';
 
-  snprintf(Dir,sizeof(Dir),"%s",FullPath);
+  snprintf(Dir,DirSize,"%s",FullPath);
 
   ptr = strrchr(Dir,'/');
 
