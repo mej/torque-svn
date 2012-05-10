@@ -28,6 +28,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   b - Fixed memory leaks in generate_server_gpustats_smi. Only used with --enable-nvidia-gpus
       is on.
   b - Fix so "pbs_server --ha" does not fail when checking path for server.lock file. TRQ-907.
+  b - Fixed a problem in qmgr where only 9 commands could be completed before a failure. 
+      Bugzilla 192 and TRQ-931
 
 4.0.1
   b - Fix trqauthd init scripts to use correct path to trqauthd.
