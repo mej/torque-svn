@@ -12,7 +12,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       (merged from revision 6125 of 2.5-fixes)
   b - Fix so "pbs_server --ha" does not fail when checking path for server.lock file. 
       TRQ-907. (backported from 4.0.2)
-     
+  b - port the fix from 2.5-fixes for TRQ-608. Resolves the problem with interactive
+      jobs exiting prematurely.
 
 3.0.5
   b - fix for writing too much data when job_script is saved to job log.
