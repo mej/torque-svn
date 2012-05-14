@@ -3640,6 +3640,9 @@ int read_config(
 
       if (tp)
         {
+        /* Trim any leading space */
+        while(isspace(*tp)) tp++;
+
         setpbsserver(tp);
         }
       }
