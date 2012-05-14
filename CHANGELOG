@@ -2,7 +2,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
 
 4.0.2
   b - Fix so qrun jobid[] does not cause pbs_server segfault. TRQ-865.
-  *b - Fix to validate qsub -l nodes=x against resources_max.nodes the same as v2.4.
+  b - Fix to validate qsub -l nodes=x against resources_max.nodes the same as v2.4.
       TRQ-897.
   *b - bugzilla #188. The deadlock when using job logging is resolved
   *e - Allow pbs_mom to change users group on stderr/stdout files. Enabled by configuring
