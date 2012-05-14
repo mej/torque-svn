@@ -1,5 +1,21 @@
 c - crash     b - bug fix    e - enhancement    f - new feature  n - note
 
+4.0.2
+  *b - Fix so qrun jobid[] does not cause pbs_server segfault. TRQ-865.
+  *b - Fix to validate qsub -l nodes=x against resources_max.nodes the same as v2.4.
+      TRQ-897.
+  *b - bugzilla #188. The deadlock when using job logging is resolved
+  *e - Allow pbs_mom to change users group on stderr/stdout files. Enabled by configuring
+      Torque with CFLAGS='-DRESETGROUP'. TRQ-908.
+  *b - Fix so pbs_mom will compile when configured with --with-nvml-lib=/usr/lib and
+      --with-nvml-include. TRQ-926.
+  *b - change pbs_server to listen on all interfaces. TRQ-923
+  *b - Fixed memory leaks in generate_server_gpustats_smi. Only used with --enable-nvidia-gpus
+      is on.
+  *b - Fix so "pbs_server --ha" does not fail when checking path for server.lock file. TRQ-907.
+  *b - Fixed a problem in qmgr where only 9 commands could be completed before a failure.
+          Bugzilla 192 and TRQ-931
+          
 4.0.1
   b - Fix so qrun jobid[] does not cause pbs_server segfault. TRQ-865.
   b - Fix trqauthd init scripts to use correct path to trqauthd.
