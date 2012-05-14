@@ -9,8 +9,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       Torque with CFLAGS='-DRESETGROUP'. TRQ-908.
   *b - Fix so pbs_mom will compile when configured with --with-nvml-lib=/usr/lib and
       --with-nvml-include. TRQ-926.
-  *b - change pbs_server to listen on all interfaces. TRQ-923
-  *b - Fixed memory leaks in generate_server_gpustats_smi. Only used with --enable-nvidia-gpus
+  b - change pbs_server to listen on all interfaces. TRQ-923
+  b - Fixed memory leaks in generate_server_gpustats_smi. Only used with --enable-nvidia-gpus
       is on.
   *b - Fix so "pbs_server --ha" does not fail when checking path for server.lock file. TRQ-907.
   *b - Fixed a problem in qmgr where only 9 commands could be completed before a failure.
