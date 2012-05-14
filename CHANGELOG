@@ -11,7 +11,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       --with-nvml-include. TRQ-926.
   b - change pbs_server to listen on all interfaces. TRQ-923
   b - Fixed memory leaks in generate_server_gpustats_smi. Only used with --enable-nvidia-gpus
-      is on.
+      is on. TRQ-904
   b - Fix so "pbs_server --ha" does not fail when checking path for server.lock file. TRQ-907.
   b - Fixed a problem in qmgr where only 9 commands could be completed before a failure.
           Bugzilla 192 and TRQ-931
