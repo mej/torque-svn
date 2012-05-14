@@ -272,9 +272,7 @@ static char *mk_job_log_name(
             ptm->tm_mday);
     }
 
-  pthread_mutex_lock(job_log_mutex);
   joblog_open_day = ptm->tm_yday; /* Julian date log opened */
-  pthread_mutex_unlock(job_log_mutex);
 
   return(pbuf);
   }  /* END mk_job_log_name() */
