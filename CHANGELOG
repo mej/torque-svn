@@ -17,6 +17,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
           Bugzilla 192 and TRQ-931
   b - Fix to prevent deadlock on server restart with completed job that had a dependency.
       TRQ-936.
+  b - prevent TORQUE from losing connectivity with Moab when starting jobs asynchronously
+      TRQ-918
 
 4.0.1
   b - Fix so qrun jobid[] does not cause pbs_server segfault. TRQ-865.
