@@ -88,6 +88,10 @@
 #include "pwd.h" /* passwd */
 #include "../resmom/mom_main.h"
 
+#define DEFAULT_PARTITION_CONFIRM_CMD "/opt/moab/default/tools/xt4/partition.create.xt4.pl"
+
+void check_partition_confirm_script(char *path, char *msg);
+
 /* struct var_table = used to hold environment variables for the job */
 
 struct var_table

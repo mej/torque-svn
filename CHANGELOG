@@ -21,6 +21,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       TRQ-918
   b - prevent the API from segfaulting when passed a negative socket descriptor
   b - don't allow pbs_tcp_timeout to ever be less than 5 minutes - may be temporary
+  e - log an error message if you can't find the partition confirm command for the cray
 
 4.0.1
   b - Fix so qrun jobid[] does not cause pbs_server segfault. TRQ-865.
