@@ -19,6 +19,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       TRQ-936.
   b - prevent TORQUE from losing connectivity with Moab when starting jobs asynchronously
       TRQ-918
+  b - prevent the API from segfaulting when passed a negative socket descriptor
 
 4.0.1
   b - Fix so qrun jobid[] does not cause pbs_server segfault. TRQ-865.
