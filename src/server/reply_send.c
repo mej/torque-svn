@@ -213,18 +213,21 @@ int reply_send_svr(
     if (request->rq_noreply != TRUE)
       {
       rc = dis_reply_write(sfds, &request->rq_reply);
+
       if (LOGLEVEL >= 7)
         {
         sprintf(log_buf, "Reply sent for request type %s on socket %d",
           reqtype_to_txt(request->rq_type),
           sfds);
-
+        
         log_record(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,id,log_buf);
         }
       }
     }
 
-  if ((request->rq_type != PBS_BATCH_AsyModifyJob) || (request->rq_noreply == TRUE))
+  if (((request->rq_type != PBS_BATCH_AsyModifyJob) &&
+       (request->rq_type != PBS_BATCH_AsyrunJob)) ||
+      (request->rq_noreply == TRUE))
     {
     free_br(request);
     }
