@@ -45,6 +45,17 @@ OVERVIEW
 
 *******************************************************
 
+What's new in 4.0.2
+  This build has several key fixes which were discovered after 4.0.1 was released.
+  Following are a list of the key fixes. The remainder of changes and enhancements
+  can be found in CHANGELOG.
+
+  -- Enable TORQUE 4.0.2 to listen on all interfaces. 
+  -- Fix a problem where TORQUE would lose communication with
+     Moab frequently. Particularly a problem with Cray systems.
+  -- Patched a memory leak with nvidia GPUs enabled
+  -- Fixed a problem where qmgr could only run 9 commands
+  -- Fixed a deadlock when job logging is enabled.
 
 The following is a summary of key new features in TORQUE 4.0
 
