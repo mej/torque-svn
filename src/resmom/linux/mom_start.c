@@ -136,7 +136,7 @@ int set_job(
   struct startjob_rtn *sjr)   /* I (modified,optional) */
 
   {
-  char id[] = "set_job";
+  char  id[] = "set_job";
 
   char *PPtr;
   char *CPtr;
@@ -159,7 +159,7 @@ int set_job(
     char  tmpLine[MAXLINE];
 
     if (AllocParCmd == NULL)
-      AllocParCmd = strdup("/opt/moab/default/tools/partition.create.xt4.pl");
+      AllocParCmd = strdup(DEFAULT_PARTITION_CONFIRM_CMD);
 
 #ifdef USEJOBCREATE
 
@@ -182,6 +182,8 @@ int set_job(
              pjob->ji_qs.ji_jobid,
              sid);
       }
+
+    check_partition_confirm_script(AllocParCmd, "catastrophic failure");
 
     log_ext(
       -1,

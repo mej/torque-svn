@@ -3377,6 +3377,7 @@ int read_config(
   char                   name[50];
   char                  *str;
   char                  *ptr;
+  char                  *par_cmd;
 
   int                    linenum;
   int                    i;
@@ -3643,6 +3644,13 @@ int read_config(
         }
       }
     }
+
+  if (AllocParCmd == NULL)
+    par_cmd = DEFAULT_PARTITION_CONFIRM_CMD;
+  else
+    par_cmd = AllocParCmd;
+
+  check_partition_confirm_script(par_cmd, "ignore this if you aren't running a cray");
 
   return(rc);
   }  /* END read_config() */
@@ -8981,6 +8989,34 @@ int add_to_resend_things(
   } /* END add_to_resend_things() */
 
 
+
+
+void check_partition_confirm_script(
+    
+  char *path,
+  char *msg)
+
+  {
+  struct stat stbuf;
+
+  if (stat(path, &stbuf) == -1)
+    {
+    snprintf(log_buffer, sizeof(log_buffer),
+      "Couldn't stat the partition confirm command '%s' - %s",
+      path,
+      msg);
+    log_err(errno, __func__, log_buffer);
+    }
+  else if ((stbuf.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0)
+    {
+    snprintf(log_buffer, sizeof(log_buffer),
+      "Partition confirm command '%s' isn't executable - %s",
+      path,
+      msg);
+    log_err(-1, __func__, log_buffer);
+    }
+
+  } /* END check_partition_confirm_script() */
 
 
 /* END mom_main.c */
