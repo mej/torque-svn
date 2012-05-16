@@ -50,7 +50,8 @@ What's new in 4.0.2
   Following are a list of the key fixes. The remainder of changes and enhancements
   can be found in CHANGELOG.
 
-  -- Enable TORQUE 4.0.2 to listen on all interfaces. 
+  -- Enable TORQUE 4.0.2 to listen on all interfaces. This is critical for 
+     multi-homed systems.
   -- Fix a problem where TORQUE would lose communication with
      Moab frequently. Particularly a problem with Cray systems.
   -- Patched a memory leak with nvidia GPUs enabled
