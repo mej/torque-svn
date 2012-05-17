@@ -1,5 +1,8 @@
 c - crash     b - bug fix    e - enhancement    f - new feature  n - note
 
+4.0.3
+  b - fix qdel -p all - was performing a qdel all. TRQ-947
+
 4.0.2
   e - Change so init.d script variables get set based on the configure command.
       TRQ-789, TRQ-792.
