@@ -8,6 +8,7 @@
 #include "u_tree.h" /* AvlTree */
 #include "libpbs.h" /* job_file */
 #include "mom_hierarchy.h" /* mom_hierarchy_t */
+#include "mom_server.h" 
 #include "server_limits.h" /* pbs_net_t. Also defined in net_connect.h */
 #include "threadpool.h" /* threadpool_t */
 #include "list_link.h" /* list_link, tlist_head */
@@ -17,7 +18,9 @@
 #include "resource.h" /* resource_def */
 #include "prolog.h" /* PBS_PROLOG_TIME */
 #include "log.h" /* LOG_BUF_SIZE */
+#include "tcp.h"
 
+mom_server     mom_servers[PBS_MAXSERVER];
 resizable_array *received_statuses;
 int mom_server_count = 0;
 char *msg_daemonname = "unset";
@@ -165,7 +168,7 @@ int IamRoot()
   exit(1);
   }
 
-int add_network_entry(mom_hierarchy_t *nt, char *name, struct addrinfo *ai, unsigned short rm_port, unsigned short service_port, int path, int level)
+int add_network_entry(mom_hierarchy_t *nt, char *name, struct addrinfo *ai, unsigned short rm_port, int path, int level)
   {
   fprintf(stderr, "The call to add_network_entry needs to be mocked!!\n");
   exit(1);
@@ -231,7 +234,7 @@ char *pbs_get_server_list(void)
   exit(1);
   }
 
-int tm_request(tcp_chan *chan, int version)
+int tm_request(struct tcp_chan *chan, int version)
   {
   fprintf(stderr, "The call to tm_request needs to be mocked!!\n");
   exit(1);
@@ -669,3 +672,21 @@ dynamic_string *get_dynamic_string(int size, char *str)
   exit(1);
   }
 
+int socket_avail_bytes_on_descriptor(int socket)
+  {
+  return(0);
+  }
+
+int tcp_chan_has_data(struct tcp_chan *chan)
+  {
+  return(1);
+  }
+
+unsigned int get_random_number()
+  {
+  return(0);
+  }
+
+void shutdown_to_server(int ServerIndex) {}
+
+void DIS_tcp_cleanup(struct tcp_chan *chan) {}

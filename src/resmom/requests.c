@@ -621,6 +621,7 @@ static int return_file(
   int                   fds;
   char                 *filename;
 
+  struct tcp_chan      *chan;
   struct batch_request *prq;
   int                   rc = 0;
   int                   seq = 0;

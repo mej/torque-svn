@@ -15,7 +15,7 @@ int socket_write(int socket, char *data, int data_len)
   exit(1);
   }
 
-int decode_DIS_replyCmd(int sock, struct batch_reply *reply)
+int decode_DIS_replyCmd(struct tcp_chan *chan, struct batch_reply *reply)
   {
   fprintf(stderr, "The call to decode_DIS_replyCmd needs to be mocked!!\n");
   exit(1);

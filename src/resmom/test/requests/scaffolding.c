@@ -109,13 +109,13 @@ void log_record(int eventtype, int objclass, const char *objname, char *text)
   exit(1);
   }
 
-int DIS_reply_read(int sock, struct batch_reply *preply)
+int DIS_reply_read(struct tcp_chan *chan, struct batch_reply *preply)
   {
   fprintf(stderr, "The call to DIS_reply_read needs to be mocked!!\n");
   exit(1);
   }
 
-int encode_DIS_JobFile(int sock, int seq, char *buf, int len, char *jobid, int which)
+int encode_DIS_JobFile(struct tcp_chan *chan, int seq, char *buf, int len, char *jobid, int which)
   {
   fprintf(stderr, "The call to encode_DIS_JobFile needs to be mocked!!\n");
   exit(1);
@@ -211,13 +211,13 @@ void *get_next(list_link pl, char *file, int line)
   exit(1);
   }
 
-int diswui(int stream, unsigned value)
+int diswui(struct tcp_chan *chan, unsigned value)
   {
   fprintf(stderr, "The call to diswui needs to be mocked!!\n");
   exit(1);
   }
 
-int encode_DIS_ReqHdr(int sock, int reqt, char *user)
+int encode_DIS_ReqHdr(struct tcp_chan *chan, int reqt, char *user)
   {
   fprintf(stderr, "The call to encode_DIS_ReqHdr needs to be mocked!!\n");
   exit(1);
@@ -331,7 +331,7 @@ int im_compose(int stream, char *jobid, char *cookie, int command, tm_event_t ev
   exit(1);
   }
 
-int encode_DIS_ReqExtend(int sock, char *extend)
+int encode_DIS_ReqExtend(struct tcp_chan *chan, char *extend)
   {
   fprintf(stderr, "The call to encode_DIS_ReqExtend needs to be mocked!!\n");
   exit(1);
@@ -366,3 +366,5 @@ void reply_text(struct batch_request *preq, int code, char *text)
   fprintf(stderr, "The call to reply_text needs to be mocked!!\n");
   exit(1);
   }
+
+void DIS_tcp_cleanup(struct tcp_chan *chan) {}

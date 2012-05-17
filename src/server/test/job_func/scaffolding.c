@@ -423,3 +423,12 @@ int get_svr_attr_str(int index, char **str)
   {
   return(0);
   }
+
+struct pbs_queue *lock_queue_with_job_held(
+
+  struct pbs_queue  *pque,
+  job       **pjob_ptr)
+
+  {
+  return(NULL);
+  }

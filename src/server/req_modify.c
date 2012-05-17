@@ -424,8 +424,8 @@ int modify_job(
   
   if (pjob == NULL)
     {
-    sprintf(log_buffer, "job structure is NULL");
-    log_err(PBSE_IVALREQ, __func__, log_buffer);
+    sprintf(log_buf, "job structure is NULL");
+    log_err(PBSE_IVALREQ, __func__, log_buf);
     return(PBSE_IVALREQ);
     }
 

@@ -122,7 +122,7 @@ char *get_local_script_path(job *pjob, char *base)
   exit(1);
   }
 
-int read_tcp_reply(int sock, int protocol, int version, int command, int *exit_status)
+int read_tcp_reply(struct tcp_chan *chan, int protocol, int version, int command, int *exit_status)
   {
   fprintf(stderr, "The call to read_tcp_reply needs to be mocked!!\n");
   exit(1);
@@ -476,4 +476,5 @@ int get_hostaddr_hostent_af(int *local_errno, char *hostname, unsigned short *af
   exit(1);
   }
 
+void DIS_tcp_cleanup(struct tcp_chan *chan) {}
 

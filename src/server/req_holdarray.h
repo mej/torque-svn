@@ -3,6 +3,7 @@
 #define _REQ_HOLDARRAY_H
 
 #include "attribute.h" /* attribute */
+#include "batch_request.h"
 
 void hold_job(attribute *temphold, void *j);
 

@@ -34,6 +34,7 @@ float max_load_val = -1.0;
 char TMOMRejectConn[MAXLINE];
 int PBSNodeCheckInterval;
 int UpdateFailCount = 0;
+time_t first_update_time;
 char *auto_ideal_load = NULL;
 char *path_spool;
 char *auto_max_load = NULL;
@@ -90,7 +91,7 @@ char *reqgres(struct rm_attribute *attrib)
   exit(1);
   }
 
-int read_tcp_reply(int sock, int protocol, int version, int command, int *exit_status)
+int read_tcp_reply(struct tcp_chan *chan, int protocol, int version, int command, int *exit_status)
   {
   fprintf(stderr, "The call to read_tcp_reply needs to be mocked!!\n");
   exit(1);
@@ -312,3 +313,35 @@ void *next_thing_from_back(resizable_array *ra, int *iter)
   exit(1);
   }
 
+int append_dynamic_string(dynamic_string *ds, char *str)
+  {
+  return(0);
+  }
+
+dynamic_string *get_dynamic_string(
+    
+  int   initial_size, /* I (-1 means default) */
+  char *str)          /* I (optional) */
+
+  {
+  return(NULL);
+  }
+
+void free_dynamic_string(dynamic_string *ds) {}
+
+int delete_last_word_from_dynamic_string(
+
+  dynamic_string *ds)
+
+  {
+  return(0);
+  }
+
+void send_update_soon() {}
+
+void DIS_tcp_cleanup(struct tcp_chan *chan) {}
+
+int AVL_list( AvlTree tree, char **Buf, long *current_len, long *max_len ) 
+  {
+  return(0);
+  }

@@ -35,6 +35,8 @@ char *path_checkpoint;
 char *job_log_file = NULL;
 char *plogenv = NULL;
 pthread_mutex_t *node_state_mutex = NULL;
+pthread_mutex_t *acctfile_mutex = NULL;
+pthread_mutex_t *check_tasks_mutex = NULL;
 char *msg_init_queued = "Requeued in queue: ";
 char *path_svrlog;
 char path_acct[_POSIX_PATH_MAX];
@@ -559,3 +561,21 @@ int array_save(job_array *pa)
   return(0);
   }
 
+int enqueue_threadpool_request(
+
+  void *(*func)(void *),
+  void *arg)
+
+  {
+  return(0);
+  }
+
+int add_hello_after(
+
+  hello_container *hc,
+  char            *node_name,
+  int              index)
+
+  {
+  return(0);
+  }

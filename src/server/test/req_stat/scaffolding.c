@@ -196,7 +196,7 @@ struct pbsnode *AVL_find(u_long key, uint16_t port, AvlTree tree)
   exit(1);
   }
 
-int *netcounter_get(void)
+void netcounter_get(int netrates[])
   {
   fprintf(stderr, "The call to netcounter_get to be mocked!!\n");
   exit(1);

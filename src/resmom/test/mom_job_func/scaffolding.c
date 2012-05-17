@@ -103,3 +103,5 @@ void close_conn(int sd, int has_mutex)
   fprintf(stderr, "The call to close_conn needs to be mocked!!\n");
   exit(1);
   }
+
+void DIS_tcp_cleanup(struct tcp_chan *chan) {}

@@ -154,3 +154,11 @@ job *find_job(char *jobid)
 void log_record(int eventtype, int objclass, const char *objname, char *text)
   {
   }
+
+int array_delete(
+    
+  job_array *pa)
+
+  {
+  return(0);
+  }

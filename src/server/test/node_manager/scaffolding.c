@@ -161,7 +161,7 @@ int node_status_list(attribute *new, void *pnode, int actmode)
   exit(1);
   }
 
-int write_tcp_reply(int sock, int protocol, int version, int command, int exit_code)
+int write_tcp_reply(struct tcp_chan *chan, int protocol, int version, int command, int exit_code)
   {
   fprintf(stderr, "The call to write_tcp_replwrite_tcp_reply needs to be mocked!!\n");
   exit(1);
