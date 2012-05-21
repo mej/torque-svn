@@ -5234,6 +5234,7 @@ int rm_request(
 
           fclose(fp);
 
+          free(body);
           body = NULL;
           }
         }
@@ -5241,6 +5242,8 @@ int rm_request(
       clear_servers();
 
       len = read_config(body);
+
+      free(body);
 
       ret = diswsi(chan, len ? RM_RSP_ERROR : RM_RSP_OK);
 
@@ -5427,13 +5430,15 @@ int tcp_read_proto_version(
   }
 
 int do_tcp(
-    int socket)
+    
+  int socket)
+
   {
-  int rc = PBSE_NONE;
-  int proto = -1;
-  int version = -1;
-  struct tcp_chan *chan = NULL;
-  extern struct connection svr_conn[];
+  int                       rc = PBSE_NONE;
+  int                       proto = -1;
+  int                       version = -1;
+  struct tcp_chan          *chan = NULL;
+  extern struct connection  svr_conn[];
 
   if ((chan = DIS_tcp_setup(socket)) == NULL)
     {
@@ -5484,8 +5489,11 @@ int do_tcp(
 
       DBPRT(("%s: got an internal task manager request\n", __func__))
       svr_conn[chan->sock].cn_stay_open = TRUE;
+
       rc = tm_request(chan, version);
-      while ((rc == PBSE_NONE) && (tcp_chan_has_data(chan) == TRUE))
+
+      while ((rc == PBSE_NONE) &&
+             (tcp_chan_has_data(chan) == TRUE))
         {
         if ((rc = tcp_read_proto_version(chan,&proto,&version)) == DIS_SUCCESS)
           rc = tm_request(chan, version);
@@ -5525,16 +5533,21 @@ int do_tcp(
 
       svr_conn[chan->sock].cn_stay_open = FALSE;
       }
-      goto do_tcp_cleanup;
-      break;
+    
+    goto do_tcp_cleanup;
+
+    break;
     }  /* END switch (proto) */
-  if (svr_conn[chan->sock].cn_stay_open == FALSE) 
-    DIS_tcp_cleanup(chan);
+
+  DIS_tcp_cleanup(chan);
+
   return rc;
 
 do_tcp_cleanup:
-  if ((chan != NULL) && (svr_conn[chan->sock].cn_stay_open == FALSE))
+  
+  if (chan != NULL)
     DIS_tcp_cleanup(chan);
+
   return DIS_INVALID;
   }  /* END do_tcp() */
 

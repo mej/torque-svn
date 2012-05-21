@@ -331,16 +331,13 @@ int DArrayAppend(
       Array->AppendIndex = 0;
       return(FAILURE);
       }
+
     memcpy(tmp, Array->Data, sizeof(Array->Data[0]) * Array->Length);
     free(Array->Data);
     Array->Data = tmp;
     Array->Length = newLength;
     }
 
-  /*
-  assert(Array->AppendIndex >= 0);
-  assert(Array->AppendIndex < Array->Length);
-   */
   Array->Data[Array->AppendIndex++] = Item;
   return(SUCCESS);
   } /* END DArrayAppend */
@@ -1662,9 +1659,8 @@ int pbsd_init(
 
           if (DArrayAppend(&Array,pjob) == FAILURE)
             {
-            log_err(ENOMEM,"main","out of memory reloading jobs");
+            log_err(ENOMEM, "main", "out of memory reloading jobs");
             exit(-1);
-
             }
 
           pthread_mutex_unlock(pjob->ji_mutex);
@@ -1693,7 +1689,7 @@ int pbsd_init(
     snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "%d total files read from disk", job_count);
     log_event(PBSEVENT_DEBUG, PBS_EVENTCLASS_SERVER, msg_daemonname, log_buf);
     closedir(dir);
-    qsort(Array.Data,Array.AppendIndex,sizeof(Array.Data[0]),SortPrioAscend);
+    qsort(Array.Data, Array.AppendIndex, sizeof(Array.Data[0]), SortPrioAscend);
 
     for (Index = 0; Index < Array.AppendIndex; Index++)
       {

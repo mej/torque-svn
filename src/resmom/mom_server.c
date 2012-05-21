@@ -3976,7 +3976,7 @@ int read_cluster_addresses(
   long            list_len = 0;
 
   if (mh != NULL)
-    free(mh);
+    free_mom_hierarchy(mh);
 
   mh = initialize_mom_hierarchy();
 
@@ -4026,6 +4026,7 @@ int read_cluster_addresses(
     else if (!strcmp(str, IS_EOL_MESSAGE))
       {
       /* done */
+      free(str);
       break;
       }
     else
@@ -4041,7 +4042,9 @@ int read_cluster_addresses(
   if (rc != DIS_SUCCESS)
     {
     /* transmission failure */
-    free(mh);
+    if (mh != NULL)
+      free_mom_hierarchy(mh);
+
     mh = initialize_mom_hierarchy();
 
     /* request new cluster addresses immediately */
@@ -4063,6 +4066,8 @@ int read_cluster_addresses(
         "Successfully received the mom hiearchy file. My okclients list is '%s', and the hierarchy file is '%s'",
         okclients_list, hierarchy_file->str);
       log_event(PBSEVENT_SYSTEM, PBS_EVENTCLASS_NODE, __func__, log_buffer);
+
+      free(okclients_list);
       }
  
     /* tell the mom to go ahead and send an update to pbs_server */
