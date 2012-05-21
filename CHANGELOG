@@ -14,6 +14,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   e - changed --with-high-availablity to --enable-high-availability in the 
       buildutils/torque.spec.in file
   b - set waittime to be MAX of 0 or waittime in main_loop for server to prevent 100% CPU utilization
+  b - back ported a fix from 3.0 fixes that handles a buffer overflow because
+      the resizing of the data buffer in tcp_puts was not large enough.
      
 
 2.4.16
