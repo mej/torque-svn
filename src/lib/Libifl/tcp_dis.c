@@ -666,7 +666,7 @@ static int tcp_puts(
     /* not enough room, reallocate the buffer */
     leadpct = (int)(tp->tdis_thebuf - tp->tdis_leadp);
     trailpct = (int)(tp->tdis_thebuf - tp->tdis_trailp);
-    newbufsize = tp->tdis_bufsize + THE_BUF_SIZE;
+    newbufsize = tp->tdis_bufsize + THE_BUF_SIZE + ct;
     temp = (char *)malloc(newbufsize);
     if(!temp)
       {
