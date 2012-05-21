@@ -4081,6 +4081,8 @@ static int node_spec(
     /* FAILURE */
     free(all_reqs.reqs);
     free(all_reqs.req_start);
+    for (i = 0; i < all_reqs.num_reqs; i++)
+      free_prop(all_reqs.reqs[i].prop);
 
     return(rc);
     }
@@ -4152,6 +4154,8 @@ static int node_spec(
 
   free(all_reqs.reqs);
   free(all_reqs.req_start);
+  for (i = 0; i < all_reqs.num_reqs; i++)
+    free_prop(all_reqs.reqs[i].prop);
   free(spec);
 
 #ifndef CRAY_MOAB_PASSTHRU

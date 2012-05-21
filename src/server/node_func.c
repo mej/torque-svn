@@ -2964,6 +2964,9 @@ void *send_hierarchy_threadtask(
         hi->num_retries++;
         hi->last_retry = time(NULL);
         add_hello_info(&failures, hi);
+
+        /* don't let hi get free'd */
+        hi = NULL;
         }
       }
     else
@@ -2974,13 +2977,10 @@ void *send_hierarchy_threadtask(
           "Successfully sent hierarchy to %s", hi->name);
         log_event(PBSEVENT_SYSTEM, PBS_EVENTCLASS_SERVER, __func__, log_buf);
         }
-      
-      /* only free here because otherwise it is re-used */
-      free(hi->name);
-      free(hi);
       }
     }
-  else
+
+  if (hi != NULL)
     {
     free(hi->name);
     free(hi);
