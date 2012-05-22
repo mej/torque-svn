@@ -169,6 +169,7 @@ void netcounter_incr(void)
 
   {
   time_t now, lastmin;
+  int    i;
 
   pthread_mutex_lock(nc_list_mutex);
   now = time(NULL);
