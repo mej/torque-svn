@@ -1,6 +1,20 @@
 This file contains a few notes on building and installing TORQUE and 
 Release notes for each release.
 
+New in 2.4.17
+-------------
+
+2.4.17 will be the last release of the 2.4-fixes branch of TORQUE. 
+
+The configuration option to build high availability changed from 
+--with-high-availability to --enable-high-availability.
+
+A buffer overflow problem was fixed in tcp_puts which at times made
+it so not enough memory would be allocated for outbound data. This
+may account for some segfaults and memory corruption problems.
+
+For a list of the remaining fixes please see CHANGELOG.
+
 New in 2.4.13
 -------------
 
