@@ -5539,13 +5539,17 @@ int do_tcp(
     break;
     }  /* END switch (proto) */
 
-  DIS_tcp_cleanup(chan);
+  /* don't close these connections -- the pointer is saved in 
+   * the tasks for MPI jobs */
+  if (svr_conn[chan->sock].cn_stay_open == FALSE)
+    DIS_tcp_cleanup(chan);
 
   return rc;
 
 do_tcp_cleanup:
   
-  if (chan != NULL)
+  if ((chan != NULL) &&
+      (svr_conn[chan->sock].cn_stay_open == FALSE))
     DIS_tcp_cleanup(chan);
 
   return DIS_INVALID;
