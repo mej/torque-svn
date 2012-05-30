@@ -202,6 +202,8 @@ dynamic_string         *hierarchy_holder;
 hello_container         hellos;
 hello_container         failures;
 
+batch_request_holder    brh;
+
 extern pthread_mutex_t *acctfile_mutex;
 pthread_mutex_t        *scheduler_sock_jobct_mutex;
 extern int              scheduler_sock;
@@ -1263,6 +1265,7 @@ int pbsd_init(
    * they can be called by a signal handler */
 
   initialize_recycler();
+  initialize_batch_request_holder();
 
   initialize_all_tasks_array(&task_list_timed);
   initialize_all_tasks_array(&task_list_event);

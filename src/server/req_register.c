@@ -998,18 +998,24 @@ static void post_doq(
   struct work_task *pwt)
 
   {
-  struct batch_request *preq = (struct batch_request *)pwt->wt_parm1;
+  struct batch_request *preq = get_remove_batch_request(pwt->wt_parm1);
   char                  log_buf[LOCAL_LOG_BUF_SIZE];
+  char                  *msg;
+  job                   *pjob;
+  attribute             *pattr;
 
-  char *jobid = preq->rq_ind.rq_register.rq_child;
+  struct depend         *pdp;
 
-  char *msg;
-  job  *pjob;
-  attribute       *pattr;
+  struct depend_job     *pdjb;
+  char                  *jobid;
 
-  struct depend     *pdp;
+  free(pwt->wt_mutex);
+  free(pwt);
+ 
+  if (preq == NULL)
+    return;
 
-  struct depend_job *pdjb;
+  jobid = preq->rq_ind.rq_register.rq_child;
 
   if (preq->rq_reply.brp_code)
     {
@@ -1056,7 +1062,7 @@ static void post_doq(
       }
     }
 
-  release_req(pwt);
+  free_br(preq);
 
   return;
   }  /* END post_doq() */
@@ -1246,15 +1252,22 @@ static void post_doe(
   struct work_task *pwt)
 
   {
-  struct batch_request *preq = pwt->wt_parm1;
-  char       *jobid = preq->rq_ind.rq_register.rq_child;
-  attribute      *pattr;
+  struct batch_request *preq = get_remove_batch_request(pwt->wt_parm1);
+  attribute            *pattr;
 
-  struct depend      *pdep;
+  struct depend        *pdep;
 
-  struct depend_job  *pdj;
-  job       *pjob;
+  struct depend_job    *pdj;
+  job                  *pjob;
+  char                 *jobid;
 
+  free(pwt->wt_mutex);
+  free(pwt);
+
+  if (preq == NULL)
+    return;
+
+  jobid = preq->rq_ind.rq_register.rq_child;
   pjob = find_job(jobid);
 
   if (pjob != NULL)
@@ -1276,7 +1289,7 @@ static void post_doe(
     pthread_mutex_unlock(pjob->ji_mutex);
     }
 
-  release_req(pwt);
+  free_br(preq);
 
   return;
   }  /* END post_doe() */
