@@ -651,6 +651,8 @@ static int initialize_pbsnode(
     return(ENOMEM);
     }
 
+  get_addr_info(pname, &pnode->nd_sock_addr, 3);
+
   pthread_mutex_init(pnode->nd_mutex,NULL);
 
   return(PBSE_NONE);

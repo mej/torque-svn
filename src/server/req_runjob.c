@@ -1606,21 +1606,22 @@ static job *chk_job_torun(
 
 
 /* 
- * set_mother_superior_ports - The first host in list is the host
+ * set_job_exec_info - The first host in list is the host
  * of Mother Superior. Find the mom manager and service ports
  * from allnodes and then set the pjob mom ports accordingly 
  */
 
-int set_mother_superior_ports(
+int set_job_exec_info(
     
   job *pjob,
   char *list)
 
   {
-  char ms[PBS_MAXHOSTNAME];
-  char *ptr;
-  int  i;
+  char            ms[PBS_MAXHOSTNAME];
+  char           *ptr;
+  int             i;
   struct pbsnode *pnode;
+  struct in_addr  hostaddr;
 
   if (list == NULL)
     {
@@ -1643,14 +1644,16 @@ int set_mother_superior_ports(
     {
     pjob->ji_qs.ji_un.ji_exect.ji_momport = pnode->nd_mom_port;
     pjob->ji_qs.ji_un.ji_exect.ji_mom_rmport = pnode->nd_mom_rm_port;
+    memcpy(&hostaddr, &pnode->nd_sock_addr.sin_addr, sizeof(hostaddr));
+    pjob->ji_qs.ji_un.ji_exect.ji_momaddr = ntohl(hostaddr.s_addr);
 
-    unlock_node(pnode, "set_mother_superior_ports", NULL, LOGLEVEL);
+    unlock_node(pnode, __func__, NULL, LOGLEVEL);
     
     return(PBSE_NONE);
     }
 
   return(PBSE_UNKNODEATR);
-  } /* END set_mother_superior_ports() */
+  } /* END set_job_exec_info() */
 
 
 
@@ -1843,7 +1846,6 @@ static int assign_hosts(
   int           procs=0;
   extern char  *mom_host;
   char          log_buf[LOCAL_LOG_BUF_SIZE];
-  int           local_errno = 0;
   char         *def_node = NULL;
   char         *to_free = NULL;
 
@@ -2009,33 +2011,25 @@ static int assign_hosts(
 
     free(tmp);
 
-    if (momaddr == 0)
+    rc = set_job_exec_info(pjob, pjob->ji_qs.ji_destin);
+
+    if (rc != 0)
       {
-      momaddr = get_hostaddr(&local_errno, pjob->ji_qs.ji_destin);
-
-      if (momaddr == 0)
-        {
-        free_nodes(pjob);
-
-        if (list != NULL)
-          free(list);
-
-        sprintf(log_buf, "ALERT:  job cannot allocate node '%s' (could not determine IP address for node)",
-          pjob->ji_qs.ji_destin);
-
-        log_event(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,pjob->ji_qs.ji_jobid,log_buf);
-
-        if (to_free != NULL)
-          free(to_free);
-
-        return(PBSE_BADHOST);
-        }
+      free_nodes(pjob);
+      
+      if (list != NULL)
+        free(list);
+      
+      sprintf(log_buf, "ALERT:  job cannot allocate node '%s' (could not determine IP address for node)",
+        pjob->ji_qs.ji_destin);
+      
+      log_event(PBSEVENT_JOB,PBS_EVENTCLASS_JOB,pjob->ji_qs.ji_jobid,log_buf);
+      
+      if (to_free != NULL)
+        free(to_free);
+      
+      return(PBSE_BADHOST);
       }
-
-    pjob->ji_qs.ji_un.ji_exect.ji_momaddr = momaddr;
-
-    rc = set_mother_superior_ports(pjob, list);
-
     }  /* END if (rc == 0) */
 
   if (list != NULL)
