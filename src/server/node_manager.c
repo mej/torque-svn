@@ -125,6 +125,7 @@
 #include "../lib/Libnet/lib_net.h" /* socket_read_flush */
 #include "svr_func.h" /* get_svr_attr_* */
 #include "svr_connect.h" /* svr_disconnect_sock */
+#include "net_cache.h"
 
 #define IS_VALID_STR(STR)  (((STR) != NULL) && ((STR)[0] != '\0'))
 #define SEND_HELLO 11
@@ -2345,11 +2346,17 @@ int svr_is_request(
     } /* END if AVL_find != NULL) */
   else if (allow_any_mom)
     {
-    if (getnameinfo(&s_addr, len, nodename, sizeof(nodename)-1,NULL,0,0) != 0)
+    char *name = get_cached_nameinfo(addr);
+
+    if (name != NULL)
+      snprintf(nodename, sizeof(nodename), "%s", name);
+    else if (getnameinfo(&s_addr, len, nodename, sizeof(nodename)-1, NULL, 0, 0) != 0)
       {
       tmpaddr = ntohl(addr->sin_addr.s_addr);
       sprintf(nodename, "0x%lX", tmpaddr);
       }
+    else
+      insert_addr_name_info(nodename, addr);
 
     err = create_partial_pbs_node(nodename, ipaddr, perm);
 

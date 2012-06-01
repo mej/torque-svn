@@ -124,6 +124,7 @@
 #include "svr_task.h" /* initialize_task_recycler */
 #include "svr_func.h" /* get_svr_attr_* */
 #include "job_func.h" /* job_purge */
+#include "net_cache.h"
 
 /*#ifndef SIGKILL*/
 /* there is some weird stuff in gcc include files signal.h & sys/params.h */
@@ -504,9 +505,13 @@ int can_resolve_hostname(
   if ((colon = strchr(hostname, ':')) != NULL)
     *colon = '\0';
 
-  if (getaddrinfo(hostname, NULL, NULL, &addr_info) == 0)
-    {
+  if (get_cached_addrinfo(hostname) != NULL)
     can_resolve = TRUE;
+  else if (getaddrinfo(hostname, NULL, NULL, &addr_info) == 0)
+    {
+    struct sockaddr_in *sai = (struct sockaddr_in *)addr_info->ai_addr;
+    can_resolve = TRUE;
+    insert_addr_name_info(hostname, sai);
     freeaddrinfo(addr_info);
     }
 
@@ -526,11 +531,12 @@ void check_if_in_nodes_file(
   int   level_index)
 
   {
-  char             log_buf[LOCAL_LOG_BUF_SIZE];
-  struct pbsnode  *pnode;
-  char            *colon;
-  struct addrinfo *addr_info;
-  unsigned long    ipaddr;
+  char                log_buf[LOCAL_LOG_BUF_SIZE];
+  struct pbsnode     *pnode;
+  char               *colon;
+  struct addrinfo    *addr_info;
+  struct sockaddr_in *sai;
+  unsigned long       ipaddr;
 
   if ((colon = strchr(hostname, ':')) != NULL)
     *colon = '\0';
@@ -542,8 +548,19 @@ void check_if_in_nodes_file(
       hostname);
     log_err(-1, __func__, log_buf);
 
-    getaddrinfo(hostname, NULL, NULL, &addr_info);
-    ipaddr = ntohl(((struct sockaddr_in *)addr_info->ai_addr)->sin_addr.s_addr);
+    if ((sai = get_cached_addrinfo(hostname)) == NULL)
+      {
+      getaddrinfo(hostname, NULL, NULL, &addr_info);
+      sai = (struct sockaddr_in *)addr_info->ai_addr;
+      ipaddr = ntohl(sai->sin_addr.s_addr);
+
+      insert_addr_name_info(hostname, sai);
+
+      freeaddrinfo(addr_info);
+      }
+    else
+      ipaddr = ntohl(sai->sin_addr.s_addr);
+
     create_partial_pbs_node(hostname, ipaddr, ATR_DFLAG_MGRD | ATR_DFLAG_MGWR);
     pnode = find_nodebyname(hostname);
     }
@@ -1017,6 +1034,8 @@ int pbsd_init(
   get_svr_attr_l(SRV_ATR_threadidleseconds, &thread_idle_time);
   
   initialize_threadpool(&request_pool,min_threads,max_threads,thread_idle_time);
+
+  initialize_network_info();
 
   /* 1. set up to catch or ignore various signals */
 

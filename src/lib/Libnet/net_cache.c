@@ -77,100 +77,150 @@
 * without reference to its choice of law rules.
 */
 
-#ifndef HASH_TABLE_H
-#define HASH_TABLE_H
 
-#include "endian.h" /* LITTLE_ENDIAN */
+#include <pthread.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
 
-#ifdef __BYTE_ORDER
-# if __BYTE_ORDER == __LITTLE_ENDIAN
-#  define LITTLEENDIAN
-# else
-#  if __BYTE_ORDER == __BIG_ENDIAN
-#   define BIGENDIAN
-#  else
-Error: unknown byte order!
-#  endif
-# endif
-#endif /* __BYTE_ORDER */
-
-#ifdef BYTE_ORDER
-# if BYTE_ORDER == LITTLE_ENDIAN
-#  define LITTLEENDIAN
-# else
-#  if BYTE_ORDER == BIG_ENDIAN
-#   define BIGENDIAN
-#  else
-Error: unknown byte order!
-#  endif
-# endif
-#endif /* BYTE_ORDER */
-
-#if defined(__AIX43) || defined(__AIX51) || defined(__AIX52) || defined(__AIX53) || defined(__AIX54) || defined(__HPUX) || defined(__IRIX) || defined(__SOLARIS) || defined(__UNICOS) || defined(MBIGENDIAN)
-
-/*
- * BIG_ENDIAN is used for runtime checking of architecture
- * BIGENDIAN  is used for compile-time checking of architecture
- */
-
-/* big endian arch */
-# define HASH_BIG_ENDIAN    1
-# define HASH_LITTLE_ENDIAN 0
-
-#else
-
-/*
- * LITTLE_ENDIAN is used for runtime checking of architecture
- * LITTLEENDIAN  is used for compile-time checking of architecture
- */
+#include "net_cache.h"
+#include "resizable_array.h"
+#include "hash_table.h"
+#include "pbs_error.h"
 
 
-/* little endian arch */
-# define HASH_BIG_ENDIAN    0
-# define HASH_LITTLE_ENDIAN 1
-
-#endif /* defined(__AIX43) || ... */
-
-#if !defined(BIGENDIAN) && !defined(LITTLE_ENDIAN)
-Error: unknown byte order!
-#endif
-
-#define KEY_NOT_FOUND     -1
-#define INITIAL_HASH_SIZE 8096
-
-/* PLEASE NOTE:
- *
- * This hash table isn't designed to be an industrial-strength,
- * all-purpose hash table. Right now it is intended only to be used 
- * to hold indexes for resizable arrays 
- */
-
-/* struct definitions */
-
-struct bucket
+typedef struct network_cache
   {
-  struct bucket *next;
-  int            value;
-  char          *key;
-  };
+  resizable_array *nc_ra;
+  hash_table_t    *nc_namekey;
+  hash_table_t    *nc_saikey;
+  pthread_mutex_t *nc_mutex;
+  } network_cache;
 
-typedef struct bucket bucket;
 
-struct hash_table_t
+
+network_cache cache;
+
+
+void initialize_network_info()
   {
-  int      size;
-  int      num;
-  bucket **buckets;
-  };
+  cache.nc_ra = initialize_resizable_array(INITIAL_HASH_SIZE);
 
-typedef struct hash_table_t hash_table_t;
+  cache.nc_namekey = create_hash(INITIAL_HASH_SIZE);
+  cache.nc_saikey = create_hash(INITIAL_HASH_SIZE);
 
-int           get_value_hash(hash_table_t *, void *);
-int           get_hash(hash_table_t *, void *);
-int           add_hash(hash_table_t *, int, void *);
-int           remove_hash(hash_table_t *, char *);
-void          change_value_hash(hash_table_t *, char *, int);
-hash_table_t *create_hash(int);
-void          free_hash(hash_table_t *);
+  cache.nc_mutex = calloc(1, sizeof(pthread_mutex_t));
+  pthread_mutex_init(cache.nc_mutex, NULL);
+  } /* END initialize_network_info() */
 
-#endif /* HASH_TABLE_H */
+
+
+
+char *get_cached_nameinfo(
+    
+  struct sockaddr_in  *sai)
+
+  {
+  network_info *ni;
+  char         *hostname = NULL;
+  int           index;
+
+  pthread_mutex_lock(cache.nc_mutex);
+
+  if ((index = get_value_hash(cache.nc_saikey, sai)) >= 0)
+    {
+    ni = (network_info *)cache.nc_ra->slots[index].item;
+
+    if (ni != NULL)
+      hostname = ni->hostname;
+    }
+
+
+  pthread_mutex_unlock(cache.nc_mutex);
+
+  return(hostname);
+  } /* END get_cached_nameinfo() */
+
+
+
+
+struct sockaddr_in *get_cached_addrinfo(
+    
+  char               *hostname)
+  
+  {
+  network_info       *ni;
+  int                 index;
+  struct sockaddr_in *sai;
+
+  pthread_mutex_lock(cache.nc_mutex);
+
+  if ((index = get_value_hash(cache.nc_namekey, hostname)) >= 0)
+    {
+    ni = (network_info *)cache.nc_ra->slots[index].item;
+
+    if (ni != NULL)
+      {
+      sai = &ni->sai;
+      }
+    }
+
+  pthread_mutex_unlock(cache.nc_mutex);
+
+  return(sai);
+  } /* END get_cached_addrinfo() */
+
+
+
+
+network_info *get_network_info_holder(
+
+  char               *hostname,
+  struct sockaddr_in *sai)
+
+  {
+  /* initialize the network info holder */
+  network_info *ni = calloc(1, sizeof(network_info));
+
+  ni->hostname = strdup(hostname);
+  memcpy(&ni->sai, sai, sizeof(struct sockaddr_in));
+
+  return(ni);
+  } /* END get_network_info_holder() */
+
+
+
+
+int insert_addr_name_info(
+    
+  char               *hostname,
+  struct sockaddr_in *sai)
+
+  {
+  int           rc = PBSE_NONE;
+  int           index;
+  network_info *ni;
+
+  pthread_mutex_lock(cache.nc_mutex);
+
+  /* only insert if it isn't already there */
+  if (get_value_hash(cache.nc_namekey, hostname) < 0)
+    {
+    ni = get_network_info_holder(hostname, sai);
+
+    if ((index = insert_thing(cache.nc_ra, ni)) < 0)
+      rc = ENOMEM;
+    else
+      {
+      /* store the key in both hash tables so we can look things up either way */
+      add_hash(cache.nc_namekey, index, hostname);
+      add_hash(cache.nc_saikey, index, sai);
+      }
+    }
+
+  pthread_mutex_unlock(cache.nc_mutex);
+
+  return(rc);
+  } /* END insert_addr_name_info() */
+
+

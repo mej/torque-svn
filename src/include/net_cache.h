@@ -77,100 +77,21 @@
 * without reference to its choice of law rules.
 */
 
-#ifndef HASH_TABLE_H
-#define HASH_TABLE_H
-
-#include "endian.h" /* LITTLE_ENDIAN */
-
-#ifdef __BYTE_ORDER
-# if __BYTE_ORDER == __LITTLE_ENDIAN
-#  define LITTLEENDIAN
-# else
-#  if __BYTE_ORDER == __BIG_ENDIAN
-#   define BIGENDIAN
-#  else
-Error: unknown byte order!
-#  endif
-# endif
-#endif /* __BYTE_ORDER */
-
-#ifdef BYTE_ORDER
-# if BYTE_ORDER == LITTLE_ENDIAN
-#  define LITTLEENDIAN
-# else
-#  if BYTE_ORDER == BIG_ENDIAN
-#   define BIGENDIAN
-#  else
-Error: unknown byte order!
-#  endif
-# endif
-#endif /* BYTE_ORDER */
-
-#if defined(__AIX43) || defined(__AIX51) || defined(__AIX52) || defined(__AIX53) || defined(__AIX54) || defined(__HPUX) || defined(__IRIX) || defined(__SOLARIS) || defined(__UNICOS) || defined(MBIGENDIAN)
-
-/*
- * BIG_ENDIAN is used for runtime checking of architecture
- * BIGENDIAN  is used for compile-time checking of architecture
- */
-
-/* big endian arch */
-# define HASH_BIG_ENDIAN    1
-# define HASH_LITTLE_ENDIAN 0
-
-#else
-
-/*
- * LITTLE_ENDIAN is used for runtime checking of architecture
- * LITTLEENDIAN  is used for compile-time checking of architecture
- */
+#include <netinet/in.h>
 
 
-/* little endian arch */
-# define HASH_BIG_ENDIAN    0
-# define HASH_LITTLE_ENDIAN 1
-
-#endif /* defined(__AIX43) || ... */
-
-#if !defined(BIGENDIAN) && !defined(LITTLE_ENDIAN)
-Error: unknown byte order!
-#endif
-
-#define KEY_NOT_FOUND     -1
-#define INITIAL_HASH_SIZE 8096
-
-/* PLEASE NOTE:
- *
- * This hash table isn't designed to be an industrial-strength,
- * all-purpose hash table. Right now it is intended only to be used 
- * to hold indexes for resizable arrays 
- */
-
-/* struct definitions */
-
-struct bucket
+typedef struct network_info
   {
-  struct bucket *next;
-  int            value;
-  char          *key;
-  };
+  char               *hostname;
+  struct sockaddr_in  sai;
+  } network_info;
 
-typedef struct bucket bucket;
 
-struct hash_table_t
-  {
-  int      size;
-  int      num;
-  bucket **buckets;
-  };
 
-typedef struct hash_table_t hash_table_t;
 
-int           get_value_hash(hash_table_t *, void *);
-int           get_hash(hash_table_t *, void *);
-int           add_hash(hash_table_t *, int, void *);
-int           remove_hash(hash_table_t *, char *);
-void          change_value_hash(hash_table_t *, char *, int);
-hash_table_t *create_hash(int);
-void          free_hash(hash_table_t *);
+void                initialize_network_info();
+char               *get_cached_nameinfo(struct sockaddr_in *sai);
+struct sockaddr_in *get_cached_addrinfo(char *hostname);
+int                 insert_addr_name_info(char *hostname, struct sockaddr_in *sai);
 
-#endif /* HASH_TABLE_H */
+

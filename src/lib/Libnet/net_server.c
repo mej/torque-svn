@@ -115,6 +115,7 @@
 #include "portability.h"
 #include "server_limits.h"
 #include "net_connect.h"
+#include "net_cache.h"
 #include "log.h"
 #include "../Liblog/pbs_log.h" /* log_err */
 #include "../Liblog/log_event.h" /* log_event */
@@ -1097,6 +1098,7 @@ int get_connecthost(
   struct sockaddr_in      addr_in;
   static struct in_addr   serveraddr;
   static char            *server_name = NULL;
+  char                   *name;
 
   addr_in.sin_family = AF_INET;
   addr_in.sin_port = 0;
@@ -1107,7 +1109,9 @@ int get_connecthost(
     addr_in.sin_addr = serveraddr;
     addr_info_ptr = (struct sockaddr *)&addr_in;
 
-    if (getnameinfo(addr_info_ptr, sizeof(addr_in), namebuf, size, NULL, 0, 0) == 0)
+    if ((name = get_cached_nameinfo(&addr_in)) != NULL)
+      server_name = strdup(name);
+    else if (getnameinfo(addr_info_ptr, sizeof(addr_in), namebuf, size, NULL, 0, 0) == 0)
       server_name = strdup(namebuf);
     else
       server_name = strdup(inet_ntoa(serveraddr));
@@ -1130,6 +1134,10 @@ int get_connecthost(
     /* lookup request is for local server */
 
     snprintf(namebuf, size, "%s", server_name);
+    }
+  else if ((name = get_cached_nameinfo(&addr_in)) != NULL)
+    {
+    snprintf(namebuf, size, "%s", name);
     }
   else if (getnameinfo(addr_info_ptr, sizeof(addr_in), namebuf, size, NULL, 0, 0) != 0)
     {
