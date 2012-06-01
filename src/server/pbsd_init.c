@@ -511,7 +511,7 @@ int can_resolve_hostname(
     {
     struct sockaddr_in *sai = (struct sockaddr_in *)addr_info->ai_addr;
     can_resolve = TRUE;
-    insert_addr_name_info(hostname, sai);
+    insert_addr_name_info(hostname, addr_info->ai_canonname, sai);
     freeaddrinfo(addr_info);
     }
 
@@ -554,7 +554,7 @@ void check_if_in_nodes_file(
       sai = (struct sockaddr_in *)addr_info->ai_addr;
       ipaddr = ntohl(sai->sin_addr.s_addr);
 
-      insert_addr_name_info(hostname, sai);
+      insert_addr_name_info(hostname, addr_info->ai_canonname, sai);
 
       freeaddrinfo(addr_info);
       }

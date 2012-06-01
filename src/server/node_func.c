@@ -839,7 +839,6 @@ static int process_host_name_part(
     }
 
   sai = (struct sockaddr_in *)addr_info->ai_addr;
-  insert_addr_name_info(phostname, sai);
   addr = sai->sin_addr;
 
   if (addr_info->ai_canonname == NULL)
@@ -849,6 +848,7 @@ static int process_host_name_part(
     return(PBSE_SYSTEM);
     }
 
+  insert_addr_name_info(phostname, addr_info->ai_canonname, sai);
   snprintf(hname, sizeof(hname), "%s", addr_info->ai_canonname);
   
   totalipcount = 0;
@@ -3019,8 +3019,6 @@ int send_hierarchy(
     {
     if ((rc = get_addr_info(name, &sa, 3)) != PBSE_NONE)
       return(rc);
-    else
-      insert_addr_name_info(name, &sa);
     }
 
   sa.sin_port = htons(port);
