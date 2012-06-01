@@ -16,6 +16,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   c - fix a crash when using job dependencies that fail - TRQ-990
   e - when running a job use cached address information instead of looking it up
       each time.
+  c - fix a crash around re-running jobs
 
 4.0.2
   e - Change so init.d script variables get set based on the configure command.
