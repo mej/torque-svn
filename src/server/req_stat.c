@@ -775,7 +775,8 @@ static void req_stat_job_step2(
         {
         pque = get_jobs_queue(&pjob);
 
-        if (pjob == NULL)
+        if ((pjob == NULL) ||
+            (pque == NULL))
           goto nextjob;
         
         if (pque->qu_qs.qu_type != QTYPE_Execution)
@@ -821,7 +822,8 @@ static void req_stat_job_step2(
 
 nextjob:
 
-    pthread_mutex_unlock(pjob->ji_mutex);
+    if (pjob != NULL)
+      pthread_mutex_unlock(pjob->ji_mutex);
 
     if (type == tjstJob)
       break;
