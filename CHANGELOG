@@ -17,6 +17,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   e - Cache addresses and names to prevent calling getnameinfo() and getaddrinfo()
       too often. TRQ-993
   c - fix a crash around re-running jobs
+  e - change so some Moab envirionment variables will be put into environment for
+      the prologue and epilogue scripts. TRQ-967.
 
 4.0.2
   e - Change so init.d script variables get set based on the configure command.
