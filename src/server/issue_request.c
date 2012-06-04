@@ -476,10 +476,9 @@ int issue_Drequest(
   if (conn == PBS_LOCAL_CONNECTION)
     {
     /* the request should be issued to ourself */
+    rc = dispatch_request(PBS_LOCAL_CONNECTION, request);
 
-    dispatch_request(PBS_LOCAL_CONNECTION, request);
-
-    return(0);
+    return(rc);
     }
 
   if (func != NULL)
@@ -496,8 +495,10 @@ int issue_Drequest(
       {
       log_err(errno, id, "could not set_task");
       close_conn(sock, FALSE);
+
       if (chan != NULL)
         DIS_tcp_cleanup(chan);
+
       return(PBSE_MEM_MALLOC);
       }
     }
