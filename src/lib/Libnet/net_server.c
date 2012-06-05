@@ -121,6 +121,7 @@
 #include "../Liblog/log_event.h" /* log_event */
 #include "../Libifl/lib_ifl.h" /* DIS_* */
 #include "pbs_error.h" /* PBSE_NONE */
+#include "dis.h"
 
 char   local_host_name[PBS_MAXHOSTNAME + 1];
 size_t local_host_name_len = PBS_MAXHOSTNAME;
@@ -291,6 +292,8 @@ int init_network(
   if (initialized == 0)
     {
     initialize_connections_table();
+
+    disiui_();
 
     for (i = 0;i < PBS_NET_MAX_CONNECTIONS;i++)
       {
