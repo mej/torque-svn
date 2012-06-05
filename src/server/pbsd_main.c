@@ -1204,7 +1204,7 @@ void start_routing_retry_thread()
 
 void monitor_accept_thread()
   {
-  if (accept_thread_id == -1)
+  if (accept_thread_id == (pthread_t)-1)
     start_accept_thread();
   else if (pthread_kill(accept_thread_id, 0) == ESRCH)
     {
