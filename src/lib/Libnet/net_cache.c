@@ -261,7 +261,7 @@ int insert_addr_name_info(
       {
       /* store the key in both hash tables so we can look things up either way */
       add_hash(cache.nc_namekey, index, ni->hostname);
-      add_hash(cache.nc_saikey, index, ni->sai);
+      add_hash(cache.nc_saikey, index, &ni->sai);
       }
     }
 
