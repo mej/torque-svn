@@ -810,7 +810,7 @@ int send_sisters(
 
   int              i;
   int              num;
-  int              ret;
+  int              ret = PBSE_NONE;
   int              local_socket;
   struct tcp_chan *local_chan = NULL;
   int              job_radix;
@@ -1880,7 +1880,7 @@ void send_im_error(
   static char *id = "send_im_error";
   int          socket;
   int          i;
-  int          rc;
+  int          rc = DIS_SUCCESS;
   struct tcp_chan *local_chan = NULL;
   
   if (reply)
@@ -6994,8 +6994,6 @@ int tm_request(
   int version)
  
   {
-  char  *id = "tm_request";
- 
   int  command, reply = 0;
   int  ret = DIS_SUCCESS;
   int  rc = DIS_SUCCESS;
@@ -7003,7 +7001,7 @@ int tm_request(
   char  *cookie = NULL;
   char  *oreo;
   job  *pjob;
-  task  *ptask;
+  task  *ptask = NULL;
   vnodent *pnode;
   hnodent *phost;
   int      i;
@@ -7066,7 +7064,7 @@ int tm_request(
     {
     snprintf(log_buffer,sizeof(log_buffer),
       "%s: job %s cookie %s task %d com %d event %d\n",
-      id,
+      __func__,
       jobid,
       cookie,
       fromtask, 
@@ -7183,7 +7181,7 @@ int tm_request(
             fromtask,
             jobid);
  
-    log_err(-1, id, log_buffer);
+    log_err(-1, __func__, log_buffer);
  
     ret = tm_reply(chan, TM_ERROR, event);
  
@@ -7331,7 +7329,7 @@ int tm_request(
     sprintf(log_buffer, "node %d in job %s not found",
             nodeid, jobid);
  
-    log_err(-1, id, log_buffer);
+    log_err(-1, __func__, log_buffer);
  
     ret = tm_reply(ptask->ti_chan, TM_ERROR, event);
  
@@ -7425,7 +7423,7 @@ tm_req_finish:
           jobid);
         }
       
-      log_err(errno, id, log_buffer);
+      log_err(errno, __func__, log_buffer);
       
       if (ptask->ti_chan != NULL)
         {
@@ -7454,7 +7452,7 @@ err:
       sprintf(log_buffer, "bad header - communication error");
     }
   
-  log_err(errno, id, log_buffer);
+  log_err(errno, __func__, log_buffer);
   
   if (chan != NULL)
     {
