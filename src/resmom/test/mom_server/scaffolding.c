@@ -345,3 +345,5 @@ int AVL_list( AvlTree tree, char **Buf, long *current_len, long *max_len )
   {
   return(0);
   }
+
+void free_mom_hierarchy(mom_hierarchy_t *mh) {}

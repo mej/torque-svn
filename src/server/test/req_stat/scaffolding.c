@@ -301,3 +301,14 @@ pbs_queue *get_jobs_queue(job **pjob)
   {
   return((*pjob)->ji_qhdr);
   }
+
+int unlock_sv_qs_mutex(pthread_mutex_t *sv_qs_mutex, const char *msg_string)
+  {
+  return(0);
+  }
+
+int lock_sv_qs_mutex(pthread_mutex_t *sv_qs_mutex, const char *msg_string)
+  {
+  return(0);
+  }
+

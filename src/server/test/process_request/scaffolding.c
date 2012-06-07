@@ -484,3 +484,11 @@ char * netaddr_long(long ap, char *out)
   {
   return(NULL);
   }
+
+int remove_batch_request(
+
+  char *br_id)
+
+  {
+  return(0);
+  }

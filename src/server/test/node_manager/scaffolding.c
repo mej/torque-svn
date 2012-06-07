@@ -352,3 +352,22 @@ int get_svr_attr_l(int index, long *l)
   {
   return(0);
   }
+
+char *get_cached_nameinfo(
+    
+  struct sockaddr_in  *sai)
+
+  {
+  return(NULL);
+  }
+
+int insert_addr_name_info(
+    
+  char               *hostname,
+  char               *full_hostname,
+  struct sockaddr_in *sai)
+
+  {
+  return(0);
+  }
+
