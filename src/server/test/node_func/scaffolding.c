@@ -298,7 +298,7 @@ void DIS_tcp_cleanup(struct tcp_chan *chan)
 int append_dynamic_string(
 
   dynamic_string *ds,
-  const char     *str)
+  char     *str)
 
   {
   return(0);
@@ -307,7 +307,7 @@ int append_dynamic_string(
 dynamic_string *get_dynamic_string(
 
   int         size,
-  const char *str)
+  char *str)
 
   {
   return(NULL);
