@@ -40,7 +40,7 @@ int save_acl(attribute *attr, attribute_def *pdef, char *subdir, char *name)
   exit(1);
   }
 
-int add_hash(hash_table_t *ht, int value, char *key)
+int add_hash(hash_table_t *ht, int value, void *key)
   {
   fprintf(stderr, "The call to add_hash needs to be mocked!!\n");
   exit(1);
@@ -52,7 +52,7 @@ void log_record(int eventtype, int objclass, const char *objname, char *text)
   exit(1);
   }
 
-int get_value_hash(hash_table_t *ht, char *key)
+int get_value_hash(hash_table_t *ht, void *key)
   {
   fprintf(stderr, "The call to get_value_hash needs to be mocked!!\n");
   exit(1);
