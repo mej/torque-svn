@@ -512,7 +512,7 @@ static int set_allacl(struct attribute *attr, struct attribute *new, enum batch_
           return (PBSE_SYSTEM);
 
         if (pas->as_buf)
-          strcat(pc, pas->as_buf);
+          memcpy(pc, pas->as_buf, used);
 
         offset = pc - pas->as_buf;
 
@@ -530,9 +530,7 @@ static int set_allacl(struct attribute *attr, struct attribute *new, enum batch_
 
       if (j > pas->as_npointers)
         {
-
         /* need more pointers */
-
         j = 3 * j / 2;  /* allocate extra     */
         need = sizeof(struct array_strings) + (j - 1) * sizeof(char *);
         tmppas = (struct array_strings *)realloc((char *)pas, (size_t)need);
@@ -548,7 +546,6 @@ static int set_allacl(struct attribute *attr, struct attribute *new, enum batch_
         }
 
       /* now put in new strings in special ugacl sorted order */
-
       for (i = 0; i < newpas->as_usedptr; i++)
         {
         for (j = 0; j < pas->as_usedptr; j++)
@@ -558,7 +555,6 @@ static int set_allacl(struct attribute *attr, struct attribute *new, enum batch_
           }
 
         /* push up rest of old strings to make room for new */
-
         offset = strlen(newpas->as_string[i]) + 1;
 
         if (j < pas->as_usedptr)
