@@ -211,6 +211,7 @@ extern int  setup_gpus_for_job(job *pjob);
 extern int use_cpusets(job *);
 #endif /* PENABLE_LINUX26_CPUSETS */
 
+extern int wcommit_state;
 
 /* END external functions */
 
@@ -746,6 +747,13 @@ int im_compose(
   return(DIS_SUCCESS);
 
 err:
+
+  if (ret == DIS_NOCOMMIT)
+    {
+    sprintf(log_buffer, "DIS_NOCOMMIT error state (%d)",
+      wcommit_state);
+    log_err(-1, "im_compose", log_buffer);
+    }
 
   DBPRT(("im_compose: send error %s\n",
          dis_emsg[ret]))

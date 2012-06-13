@@ -199,6 +199,7 @@ extern int h_errno;
 
 int RPPTimeOut = DEFAULT_RPP_TIMEOUT;
 int RPPRetry   = DEFAULT_RPP_RETRY;
+int wcommit_state = 0;
 
 char *server_alias = NULL;
 long rpp_throttle_sleeptime = 0;
@@ -3740,6 +3741,8 @@ int rpp_wcommit(
     }
 
   sp = &stream_array[index];
+  
+  wcommit_state = sp->state;
 
   switch (sp->state)
     {
