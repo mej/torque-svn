@@ -2354,8 +2354,9 @@ void pbsd_init_reque(
 
   {
   char logbuf[265];
-  int newstate;
-  int newsubstate;
+  int  newstate;
+  int  newsubstate;
+  int  rc;
 
   sprintf(logbuf, msg_init_substate,
           pjob->ji_qs.ji_substate);
@@ -2376,7 +2377,7 @@ void pbsd_init_reque(
     }
 
   lock_sv_qs_mutex(server.sv_qs_mutex, __func__);
-  if (svr_enquejob(pjob, TRUE, -1) == PBSE_NONE)
+  if ((rc = svr_enquejob(pjob, TRUE, -1)) == PBSE_NONE)
     {
     strcat(logbuf, msg_init_queued);
     strcat(logbuf, pjob->ji_qs.ji_queue);
@@ -2390,22 +2391,27 @@ void pbsd_init_reque(
   else
     {
     /* Oops, this should never happen */
-
-    sprintf(logbuf, "%s; job %s queue %s",
-            msg_err_noqueue,
-            pjob->ji_qs.ji_jobid,
-            pjob->ji_qs.ji_queue);
-
-    log_err(-1, "pbsd_init_reque", logbuf);
+    if (rc != PBSE_UNKJOBID)
+      {
+      sprintf(logbuf, "%s; job %s queue %s",
+        msg_err_noqueue,
+        pjob->ji_qs.ji_jobid,
+        pjob->ji_qs.ji_queue);
+      
+      log_err(-1, "pbsd_init_reque", logbuf);
+      }
 
     unlock_sv_qs_mutex(server.sv_qs_mutex, logbuf);
-    job_abt(&pjob, logbuf);
+
+    if (rc != PBSE_UNKJOBID)
+      job_abt(&pjob, logbuf);
+
     lock_sv_qs_mutex(server.sv_qs_mutex, logbuf);
 
     /* NOTE:  pjob freed but dangling pointer remains */
     }
+
   unlock_sv_qs_mutex(server.sv_qs_mutex, __func__);
-  return;
   }  /* END pbsd_init_reque() */
 
 
