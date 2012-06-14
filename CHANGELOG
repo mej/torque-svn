@@ -19,8 +19,6 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   c - fix a crash around re-running jobs
   e - change so some Moab envirionment variables will be put into environment for
       the prologue and epilogue scripts. TRQ-967.
-  b - Fix network hashed cache so jobs don't get stuck in running state because
-      rq_host got set incorrectly.
   b - make command line arguments override the job script arguments. TRQ-1033.
 
 4.0.2
