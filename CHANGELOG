@@ -21,6 +21,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       the prologue and epilogue scripts. TRQ-967.
   b - Fix network hashed cache so jobs don't get stuck in running state because
       rq_host got set incorrectly.
+  b - make command line arguments override the job script arguments. TRQ-1033.
 
 4.0.2
   e - Change so init.d script variables get set based on the configure command.
