@@ -18,6 +18,9 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       incoming data. TRQ-969
   b - fix server crash caused by gpu mode not being right after gpus=x:. TRQ-948.
       (backported from 4.0.3)
+  b - Fixed a bug for NUMA where initialization of the torque cpuset directory would
+      cause the mom to crash if the /dev/cpuset/torque directory did not already exist.
+      TRQ-840.
 
 3.0.5
   b - fix for writing too much data when job_script is saved to job log.

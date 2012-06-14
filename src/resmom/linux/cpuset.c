@@ -390,7 +390,7 @@ void remove_boot_set(
     return;
     }
 
-  cpusetMap = (int *)calloc(1, cpuset_size + 1);
+  cpusetMap = (int *)calloc(1, (cpuset_size + 1) * sizeof(int));
   if(cpusetMap == NULL)
     return;
 
@@ -417,18 +417,48 @@ void remove_boot_set(
     {
     if (cpusetMap[j] > 0 )
       {
-        if (first)
+      /* if cpusetMap[j] is set then this is a cpu that is available
+         for use. add it to the user cpuset */
+      int first_index = j;
+      int last_index = j;
+
+      j++;
+      while((j < cpuset_size) && (cpusetMap[j] > 0))
+        {
+        last_index++;
+        j++;
+        }
+      if (first == TRUE)
+        {
+        if (last_index > first_index)
           {
-          sprintf (rootStr, "%d", j);
-          first = FALSE;
+          /* We have a range of cpus */
+          sprintf (rootStr, "%d-%d", first_index, last_index);
           }
         else
           {
-          sprintf (tmpBuf, ",%d", j);
+          /* we have a single cpu */
+          sprintf (rootStr, "%d", first_index);
+          }
+        first = FALSE;
+        }
+      else
+        {
+        if (last_index > first_index)
+          {
+          /* we have a range of cpus */
+          sprintf (tmpBuf, ",%d-%d", first_index, last_index);
+          strcat (rootStr, tmpBuf);
+          }
+        else
+          {
+          /* we have a single cpu to add to the set */
+          sprintf (tmpBuf, ",%d", first_index);
           strcat (rootStr, tmpBuf);
           }
       }
     }
+  }
 
   if (LOGLEVEL >= 7)
     {
