@@ -969,7 +969,7 @@ int pbsd_init(
 #endif /* not DEBUG and not NO_SECURITY_CHECK */
 
   min_threads = get_default_threads();
-  max_threads = min_threads;
+  max_threads = min_threads * 10;
 
   memset(&hints, 0, sizeof(hints));
   hints.ai_flags = AI_CANONNAME;
