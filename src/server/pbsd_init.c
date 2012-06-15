@@ -2391,7 +2391,7 @@ void pbsd_init_reque(
   else
     {
     /* Oops, this should never happen */
-    if (rc != PBSE_UNKJOBID)
+    if (rc != PBSE_JOB_RECYCLED)
       {
       sprintf(logbuf, "%s; job %s queue %s",
         msg_err_noqueue,
@@ -2403,7 +2403,7 @@ void pbsd_init_reque(
 
     unlock_sv_qs_mutex(server.sv_qs_mutex, logbuf);
 
-    if (rc != PBSE_UNKJOBID)
+    if (rc != PBSE_JOB_RECYCLED)
       job_abt(&pjob, logbuf);
 
     lock_sv_qs_mutex(server.sv_qs_mutex, logbuf);
