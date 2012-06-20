@@ -492,10 +492,9 @@ int req_altauthenuser(
   struct batch_request *preq)  /* I */
 
   {
-  int s;
-  int rc = PBSE_NONE;
-  unsigned short        conn_port;
-  unsigned short        conn_authen;
+  int            s;
+  int            rc = PBSE_NONE;
+  unsigned short conn_port;
   
   /*
    * find the socket whose client side is bound to the port named
@@ -506,7 +505,6 @@ int req_altauthenuser(
     {
     pthread_mutex_lock(svr_conn[s].cn_mutex);
     conn_port = svr_conn[s].cn_port;
-    conn_authen = svr_conn[s].cn_authen;
     pthread_mutex_unlock(svr_conn[s].cn_mutex);
 
     if (preq->rq_ind.rq_authen.rq_port != conn_port)

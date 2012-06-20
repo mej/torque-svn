@@ -173,12 +173,11 @@ static struct netcounter nc_list[60];
 void netcounter_incr(void)
 
   {
-  time_t now, lastmin;
+  time_t now;
   int    i;
 
   pthread_mutex_lock(nc_list_mutex);
   now = time(NULL);
-  lastmin = now - 60;
 
   if (nc_list[0].time == now)
     {
@@ -964,8 +963,8 @@ void close_conn(
   int has_mutex) /* I */
 
   {
-  int rc;
   char log_message[LOG_BUF_SIZE+1];
+
   if ((sd < 0) || (max_connection <= sd))
     {
     snprintf(log_message, LOG_BUF_SIZE, "sd is invalid %d!!!", sd);
@@ -1010,7 +1009,6 @@ void close_conn(
   svr_conn[sd].cn_func = (void *(*)())0;
   svr_conn[sd].cn_authen = 0;
   svr_conn[sd].cn_stay_open = FALSE;
-  rc = close(sd);
     
   if (has_mutex == FALSE)
     pthread_mutex_unlock(svr_conn[sd].cn_mutex);

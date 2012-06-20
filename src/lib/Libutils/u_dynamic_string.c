@@ -155,10 +155,6 @@ int size_to_dynamic_string(
 
   {
   char buffer[MAXLINE];
-  int  add_one = FALSE;
-
-  if (ds->used == 0)
-    add_one = TRUE;
 
   sprintf(buffer, "%lu", szv.atsv_num);
 

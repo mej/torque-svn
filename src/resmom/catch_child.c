@@ -1075,7 +1075,6 @@ void *preobit_reply(
   struct brp_status    *pstatus;
   svrattrl             *sattrl;
   int                   deletejob = 0;
-  int                   jobiscorrupt = 0;
 
   char                 *path_epiloguserjob;
   resource             *presc;
@@ -1210,14 +1209,10 @@ void *preobit_reply(
 
       sattrl = (svrattrl *)GET_NEXT(pstatus->brp_attr);
 
-      jobiscorrupt = 1;
-
       while (sattrl != NULL)
         {
         if (!strcmp(sattrl->al_name, ATTR_exechost))
           {
-          jobiscorrupt = 0;
-
           if (strncmp(
                 sattrl->al_value,
                 pjob->ji_hosts[0].hn_host,
