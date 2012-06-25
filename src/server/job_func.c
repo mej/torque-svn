@@ -1633,7 +1633,11 @@ int job_purge(
     }
     
   if ((job_has_arraystruct == FALSE) || (job_is_array_template == TRUE))
-    remove_job(&array_summary,pjob);
+    if (remove_job(&array_summary,pjob) == PBSE_JOB_RECYCLED)
+      {
+      /* PBSE_JOB_RECYCLED means the job is gone */
+      return(PBSE_NONE);
+      }
 
   /* if part of job array then remove from array's job list */
   if ((job_has_arraystruct == TRUE) && (job_is_array_template == FALSE))
