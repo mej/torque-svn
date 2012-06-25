@@ -2055,7 +2055,10 @@ job *find_job_by_array(
     }
 
   return(pj);
-  }
+  } /* END find_job_by_array() */
+
+
+
 
 /*
  * find_job() - find job by jobid
