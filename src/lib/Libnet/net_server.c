@@ -1017,6 +1017,8 @@ void close_conn(
   num_connections--;
   pthread_mutex_unlock(num_connections_mutex);
 
+  close(sd);
+
   return;
   }  /* END close_conn() */
 
