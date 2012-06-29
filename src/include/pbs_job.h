@@ -1047,7 +1047,6 @@ extern void  depend_clrrdy(job *);
 extern int   depend_on_que(attribute *, void *, int);
 extern int   depend_on_exec(job *);
 extern int   depend_on_term(job *);
-extern job  *find_job(char *);
 job         *find_job_regular_jobs(char *);
 job         *find_job_array_jobs(char *);
 extern char *get_egroup(job *);
@@ -1059,6 +1058,9 @@ extern job  *job_alloc();
 extern int   job_unlink_file(job *pjob, const char *name);
 #ifndef PBS_MOM
 extern job  *job_clone(job *,struct job_array *, int);
+extern job  *svr_find_job(char *);
+#else
+extern job  *mom_find_job(char *);
 #endif
 extern job  *job_recov(char *);
 extern int   job_save(job *, int, int);

@@ -184,7 +184,7 @@ static void post_modify_req(
     {
     if (preq->rq_reply.brp_code == PBSE_UNKJOBID)
       {
-      if ((pjob = find_job(preq->rq_ind.rq_modify.rq_objname)) == NULL)
+      if ((pjob = svr_find_job(preq->rq_ind.rq_modify.rq_objname)) == NULL)
         {
         req_reject(preq->rq_reply.brp_code, 0, preq, NULL, NULL);
         return;
@@ -246,7 +246,7 @@ void mom_cleanup_checkpoint_hold(
     return;
     }
 
-  pjob = find_job(jobid);
+  pjob = svr_find_job(jobid);
   if (pjob == NULL)
     {
     if (LOGLEVEL >= 3)
@@ -350,7 +350,7 @@ void chkpt_xfr_hold(
       (preq->rq_extra == NULL))
     return;
 
-  if ((pjob = find_job(preq->rq_extra)) == NULL)
+  if ((pjob = svr_find_job(preq->rq_extra)) == NULL)
     return;
 
   if (LOGLEVEL >= 7)
@@ -860,7 +860,7 @@ int modify_whole_array(
     if (pa->job_ids[i] == NULL)
       continue;
 
-    if ((pjob = find_job(pa->job_ids[i])) == NULL)
+    if ((pjob = svr_find_job(pa->job_ids[i])) == NULL)
       {
       free(pa->job_ids[i]);
       pa->job_ids[i] = NULL;
@@ -1493,7 +1493,7 @@ void post_modify_arrayreq(
     {
     if (preq->rq_reply.brp_code == PBSE_UNKJOBID)
       {
-      if ((pjob = find_job(preq->rq_ind.rq_modify.rq_objname)) == NULL)
+      if ((pjob = svr_find_job(preq->rq_ind.rq_modify.rq_objname)) == NULL)
         {
         parent_req->rq_refcount--;
 

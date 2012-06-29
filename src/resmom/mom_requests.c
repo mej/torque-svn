@@ -271,7 +271,7 @@ static pid_t fork_to_user(
   if (EMsg != NULL)
     EMsg[0] = '\0';
 
-  if ((pjob = find_job(preq->rq_ind.rq_cpyfile.rq_jobid)) &&
+  if ((pjob = mom_find_job(preq->rq_ind.rq_cpyfile.rq_jobid)) &&
       (pjob->ji_grpcache != 0) &&
       (preq->rq_ind.rq_cpyfile.rq_dir != CKPT_DIR_IN) &&
       (preq->rq_ind.rq_cpyfile.rq_dir != CKPT_DIR_OUT))
@@ -351,7 +351,7 @@ static pid_t fork_to_user(
       {
       hdir = pwdp->pw_dir;
       }
-    }    /* END if ((pjob = find_job(preq->rq_ind.rq_cpyfile.rq_jobid)) && ...) */
+    }    /* END if ((pjob = mom_find_job(preq->rq_ind.rq_cpyfile.rq_jobid)) && ...) */
 
   if (hdir == NULL)
     {
@@ -454,7 +454,7 @@ static pid_t fork_to_user(
 
 #ifdef _CRAY
 
-  if ((pjob = find_job(preq->rq_ind.rq_cpyfile.rq_jobid)) &&
+  if ((pjob = mom_find_job(preq->rq_ind.rq_cpyfile.rq_jobid)) &&
       (pjob->ji_grpcache != 0))
     {
     /* set account id */
@@ -1127,7 +1127,7 @@ void req_deletejob(
   job *pjob;
   pjobexec_t *TJE = NULL;
 
-  pjob = find_job(preq->rq_ind.rq_delete.rq_objname);
+  pjob = mom_find_job(preq->rq_ind.rq_delete.rq_objname);
 
   if (pjob != NULL)
     {
@@ -1188,7 +1188,7 @@ void mom_req_holdjob(
   /* If checkpoint supported, do it and terminate the job */
   /* otherwise, return PBSE_NOSUP    */
 
-  if ((pjob = find_job(preq->rq_ind.rq_hold.rq_orig.rq_objname)) == NULL)
+  if ((pjob = mom_find_job(preq->rq_ind.rq_hold.rq_orig.rq_objname)) == NULL)
     {
     rc = PBSE_UNKJOBID;
     }
@@ -1234,7 +1234,7 @@ void req_checkpointjob(
   /* If checkpoint supported, do it and terminate the job */
   /* otherwise, return PBSE_NOSUP    */
 
-  pjob = find_job(preq->rq_ind.rq_manager.rq_objname);
+  pjob = mom_find_job(preq->rq_ind.rq_manager.rq_objname);
 
   if (pjob == NULL)
     {
@@ -1477,7 +1477,7 @@ void req_messagejob(
   int   ret = 0;
   job  *pjob;
 
-  pjob = find_job(preq->rq_ind.rq_message.rq_jid);
+  pjob = mom_find_job(preq->rq_ind.rq_message.rq_jid);
 
   if ((preq->rq_ind.rq_message.rq_file == PBS_BATCH_FileOpt_Default) ||
       (preq->rq_ind.rq_message.rq_file & PBS_BATCH_FileOpt_OFlg))
@@ -1608,7 +1608,7 @@ void req_modifyjob(
 
   char tmpLine[1024];
 
-  pjob = find_job(preq->rq_ind.rq_modify.rq_objname);
+  pjob = mom_find_job(preq->rq_ind.rq_modify.rq_objname);
 
   if (pjob == NULL)
     {
@@ -2221,7 +2221,7 @@ void req_signaljob(
 
   extern struct   sig_tbl sig_tbl[];
 
-  pjob = find_job(preq->rq_ind.rq_signal.rq_jid);
+  pjob = mom_find_job(preq->rq_ind.rq_signal.rq_jid);
 
   if (pjob == NULL)
     {
@@ -2545,7 +2545,7 @@ int mom_req_stat_job(
     {
     all = 0;
 
-    pjob = find_job(name);
+    pjob = mom_find_job(name);
 
     if (pjob == NULL)
       {
@@ -2756,7 +2756,8 @@ static int del_files(
         }
 
 #ifdef HAVE_WORDEXP
-      if (setuserenv && (pjob = find_job(preq->rq_ind.rq_cpyfile.rq_jobid)) != NULL)
+      if (setuserenv && 
+          (pjob = mom_find_job(preq->rq_ind.rq_cpyfile.rq_jobid)) != NULL)
         {
         InitUserEnv(pjob, NULL, NULL, NULL, NULL);
 
@@ -2942,7 +2943,7 @@ void req_rerunjob(
   int            rc;
   int            retrycnt = 0;
 
-  pjob = find_job(preq->rq_ind.rq_rerun);
+  pjob = mom_find_job(preq->rq_ind.rq_rerun);
 
   if (pjob == NULL)
     {
@@ -3035,7 +3036,7 @@ void req_returnfiles(
   int          retry_attempts = 0;
   static char *id = "req_returnfiles";
 
-  pjob = find_job(preq->rq_ind.rq_returnfiles.rq_jobid);
+  pjob = mom_find_job(preq->rq_ind.rq_returnfiles.rq_jobid);
 
   if (pjob != NULL)
     {
@@ -3414,7 +3415,7 @@ void req_cpyfile(
 
     char *wdir;
 
-    if ((pjob = find_job(preq->rq_ind.rq_cpyfile.rq_jobid)) == NULL)
+    if ((pjob = mom_find_job(preq->rq_ind.rq_cpyfile.rq_jobid)) == NULL)
       {
       wdir = NULL;
       }
@@ -3457,7 +3458,7 @@ void req_cpyfile(
 #ifdef HAVE_WORDEXP
   faketmpdir[0] = '\0';
 
-  if ((pjob = find_job(preq->rq_ind.rq_cpyfile.rq_jobid)) == NULL)
+  if ((pjob = mom_find_job(preq->rq_ind.rq_cpyfile.rq_jobid)) == NULL)
     {
     /* This is a stagein which happens before the job struct to sent to MOM
      * or a checkpoint file coming in.

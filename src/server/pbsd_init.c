@@ -123,7 +123,7 @@
 #include "queue_recycler.h" /* queue_recycler */
 #include "svr_task.h" /* initialize_task_recycler */
 #include "svr_func.h" /* get_svr_attr_* */
-#include "job_func.h" /* job_purge */
+#include "job_func.h" /* svr_job_purge */
 #include "net_cache.h"
 
 /*#ifndef SIGKILL*/
@@ -1824,7 +1824,7 @@ int pbsd_init(
       log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pa->ai_qs.parent_id, log_buf);
       }
      
-    if ((pjob = find_job(pa->ai_qs.parent_id)) != NULL)
+    if ((pjob = svr_find_job(pa->ai_qs.parent_id)) != NULL)
       {
       job_template_exists = TRUE;
       pthread_mutex_unlock(pjob->ji_mutex);
@@ -1833,8 +1833,8 @@ int pbsd_init(
     /* if no jobs were recovered, delete this array */
     if (pa->jobs_recovered == 0)
       {
-      if ((pjob = find_job(pa->ai_qs.parent_id)) != NULL)
-        job_purge(pjob);
+      if ((pjob = svr_find_job(pa->ai_qs.parent_id)) != NULL)
+        svr_job_purge(pjob);
 
       array_delete(pa);
 
@@ -1865,10 +1865,10 @@ int pbsd_init(
           {
           if (pa->job_ids[i] != NULL)
             {
-            if ((pjob = find_job(pa->job_ids[i])) != NULL)
+            if ((pjob = svr_find_job(pa->job_ids[i])) != NULL)
               {
               pthread_mutex_unlock(pa->ai_mutex);
-              job_purge(pjob);
+              svr_job_purge(pjob);
               pthread_mutex_lock(pa->ai_mutex);
               }
             }
@@ -2276,7 +2276,7 @@ int pbsd_init_job(
             log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, job_id, log_buf);
             }
           pthread_mutex_unlock(pa->ai_mutex);
-          pjob = find_job(job_id);
+          pjob = svr_find_job(job_id);
           }
          
         }
@@ -2695,7 +2695,7 @@ void resume_net_move(
 
   if (jobid != NULL)
     {
-    pjob = find_job(jobid);
+    pjob = svr_find_job(jobid);
   
     net_move(pjob, 0);
     
@@ -2797,7 +2797,7 @@ void init_abt_job(
 
   svr_mailowner(pjob, MAIL_ABORT, MAIL_NORMAL, msg_init_abt);
 
-  job_purge(pjob);
+  svr_job_purge(pjob);
 
   return;
   }

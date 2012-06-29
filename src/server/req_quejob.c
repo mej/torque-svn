@@ -122,7 +122,7 @@
 #include "queue_func.h" /* get_dfltque, find_queuebyname */
 #include "svr_func.h" /* get_svr_attr_* */
 #include "threadpool.h"
-#include "job_func.h" /* job_purge */
+#include "job_func.h" /* svr_job_purge */
 
 
 #include "work_task.h"
@@ -608,7 +608,7 @@ int req_quejob(
 
   /* does job already exist, check both old and new jobs */
 
-  if ((pj = find_job(jid)) == NULL)
+  if ((pj = svr_find_job(jid)) == NULL)
     {
     int  iter = -1;
 
@@ -779,7 +779,7 @@ int req_quejob(
       {
       /* FAILURE */
       rc = PBSE_ATTRRO;
-      job_purge(pj);
+      svr_job_purge(pj);
       reply_badattr(rc, 1, psatl, preq);
       return rc;
       }
@@ -814,7 +814,7 @@ int req_quejob(
           {
           /* FAILURE */
           /* any other error is fatal */
-          job_purge(pj);
+          svr_job_purge(pj);
           reply_badattr(rc, 1, psatl, preq);
           return rc;
           }
@@ -844,7 +844,7 @@ int req_quejob(
         if (pque->qu_qs.qu_type == QTYPE_Execution)
           {
           /* FAILURE */
-          job_purge(pj);
+          svr_job_purge(pj);
           reply_badattr(rc, 1, psatl, preq);
           return rc;
           }
@@ -853,7 +853,7 @@ int req_quejob(
         {
         /* FAILURE */
         /* any other error is fatal */
-        job_purge(pj);
+        svr_job_purge(pj);
         reply_badattr(rc, 1, psatl, preq);
         return rc;
         }
@@ -883,7 +883,7 @@ int req_quejob(
 
       if (rc)
         {
-        job_purge(pj);
+        svr_job_purge(pj);
         req_reject(rc, i, preq, NULL, "cannot execute attribute action");
         return rc;
         }
@@ -924,7 +924,7 @@ int req_quejob(
           (pj->ji_wattr[JOB_ATR_priority].at_val.at_long > 1024))
         {
         rc = PBSE_BADATVAL;
-        job_purge(pj);
+        svr_job_purge(pj);
         req_reject(rc, 0, preq, NULL, "invalid job priority");
         return rc;
         }
@@ -948,12 +948,12 @@ int req_quejob(
         }
 
       /* make sure the job id doesn't already exist */
-      if ((tmpjob = find_job(tmp_job_id)) != NULL)
+      if ((tmpjob = svr_find_job(tmp_job_id)) != NULL)
         {
         pthread_mutex_unlock(tmpjob->ji_mutex);
 
         /* not unique, reject job */
-        job_purge(pj);
+        svr_job_purge(pj);
        
         rc = PBSE_JOBEXIST; 
         snprintf(log_buf,sizeof(log_buf),
@@ -1183,7 +1183,7 @@ int req_quejob(
         (pj->ji_wattr[JOB_ATR_errpath].at_val.at_str == NULL))
       {
       rc = PBSE_NOATTR;
-      job_purge(pj);
+      svr_job_purge(pj);
       req_reject(rc, 0, preq, NULL, "no output/error file specified");
       return rc;
       }
@@ -1260,7 +1260,7 @@ int req_quejob(
             pj->ji_wattr[JOB_ATR_account].at_val.at_str) == 0)
         {
         rc = PBSE_BADACCT;
-        job_purge(pj);
+        svr_job_purge(pj);
         req_reject(rc, 0, preq, NULL, "invalid account");
         return rc;
         }
@@ -1280,7 +1280,7 @@ int req_quejob(
         {
         /* no default found */
         rc = PBSE_BADACCT;
-        job_purge(pj);
+        svr_job_purge(pj);
         req_reject(rc, 0, preq, NULL, "no default account available");
         return rc;
         }
@@ -1298,7 +1298,7 @@ int req_quejob(
       {
       rc = PBSE_IVALREQ;
       snprintf(log_buf, LOCAL_LOG_BUF_SIZE, "no job owner specified");
-      job_purge(pj);
+      svr_job_purge(pj);
       log_err(rc, __func__, log_buf);
       req_reject(rc, 0, preq, NULL, log_buf);
       return rc;
@@ -1309,7 +1309,7 @@ int req_quejob(
     if (++pj->ji_wattr[JOB_ATR_hopcount].at_val.at_long > PBS_MAX_HOPCOUNT)
       {
       rc = PBSE_HOPCOUNT;
-      job_purge(pj);
+      svr_job_purge(pj);
       req_reject(rc, 0, preq, NULL, "max job hop reached");
       return rc;
       }
@@ -1364,7 +1364,7 @@ int req_quejob(
   if ((rc = svr_chkque(pj, pque, preq->rq_host, MOVE_TYPE_Move, EMsg)))
     {
     unlock_queue(pque, __func__, "can not move", LOGLEVEL);
-    job_purge(pj);
+    svr_job_purge(pj);
     req_reject(rc, 0, preq, NULL, EMsg);
     return rc;
     }
@@ -1402,7 +1402,7 @@ int req_quejob(
     {
     /* reply failed, purge the job and close the connection */
     rc = PBSE_SOCKET_WRITE; /* Re-write reply_jobid to return the error */
-    job_purge(pj);
+    svr_job_purge(pj);
     return rc;
     }
 
@@ -1620,7 +1620,7 @@ int req_mvjobfile(
   pj = locate_new_job(preq->rq_conn, NULL);
 
   if (pj == NULL)
-    pj = find_job(preq->rq_ind.rq_jobfile.rq_jobid);
+    pj = svr_find_job(preq->rq_ind.rq_jobfile.rq_jobid);
 
   if ((preq->rq_fromsvr == 0) || (pj == NULL))
     {
@@ -1865,8 +1865,8 @@ int req_rdytocommit(
       errno,
       strerror(errno));
     log_err(rc, __func__, log_buf);
-    if ((pj = find_job(jobid)) != NULL)
-      job_purge(pj);
+    if ((pj = svr_find_job(jobid)) != NULL)
+      svr_job_purge(pj);
     return rc;
     }
 
@@ -2062,7 +2062,7 @@ int req_commit(
         log_record(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pj->ji_qs.ji_jobid, log_buf);
         }
 
-      job_purge(pj);
+      svr_job_purge(pj);
       }
 
     req_reject(rc, 0, preq, NULL, log_buf);
@@ -2081,7 +2081,7 @@ int req_commit(
       log_record(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pj->ji_qs.ji_jobid, log_buf);
       }
 
-    job_purge(pj);
+    svr_job_purge(pj);
     req_reject(rc, 0, preq, NULL, log_buf);
     return rc;
     }
@@ -2109,7 +2109,7 @@ int req_commit(
           log_record(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, pj->ji_qs.ji_jobid,
             log_buf);
           }
-        job_purge(pj);
+        svr_job_purge(pj);
         req_reject(rc, 0, preq, NULL, log_buf);
         return rc;
         }
