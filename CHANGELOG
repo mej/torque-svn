@@ -21,6 +21,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       the prologue and epilogue scripts. TRQ-967.
   b - make command line arguments override the job script arguments. TRQ-1033.
   b - fix a pbs_mom crash when using blcr. TRQ-1020.
+  b - resources_used information now appears in the accounting log again
+      TRQ-1083 and bugzilla 198. (backported from 4.1.1)
 
 4.0.2
   e - Change so init.d script variables get set based on the configure command.
