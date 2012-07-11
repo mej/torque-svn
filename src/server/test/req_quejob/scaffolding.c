@@ -50,7 +50,7 @@ int job_save(job *pjob, int updatetype, int mom_port)
   exit(1);
   }
 
-int job_purge(job *pjob)
+int svr_job_purge(job *pjob)
   {
   fprintf(stderr, "The call to job_purge to be mocked!!\n");
   exit(1);
@@ -242,7 +242,7 @@ resource *find_resc_entry(attribute *pattr, resource_def *rscdf)
   exit(1);
   }
 
-job *find_job(char *jobid)
+job *svr_find_job(char *jobid)
   {
   fprintf(stderr, "The call to find_job to be mocked!!\n");
   exit(1);
@@ -351,3 +351,14 @@ struct pbsnode *find_nodebyname(
   }
 
 void unlock_node(struct pbsnode *pnode, const char *func_id, char *msg, int logging) {} 
+
+int lock_queue(
+
+  struct pbs_queue *the_queue,
+  const char       *id,
+  char             *msg,
+  int               logging)
+
+  {
+  return(0);
+  }

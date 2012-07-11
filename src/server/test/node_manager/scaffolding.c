@@ -371,3 +371,7 @@ int insert_addr_name_info(
   return(0);
   }
 
+void *pop_thing(resizable_array *ra)
+  {
+  return(NULL);
+  }

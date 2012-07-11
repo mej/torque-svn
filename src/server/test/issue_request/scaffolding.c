@@ -224,11 +224,6 @@ int unlock_node(struct pbsnode *the_node, char *id, char *msg, int logging)
   exit(1);                    
   }
 
-job *find_job (char *name)
-  {
-  return(NULL);
-  }
-
 void DIS_tcp_cleanup(struct tcp_chan *chan)
   {
   }
@@ -247,4 +242,9 @@ int get_batch_request_id(
 
   {
   return(0);
+  }
+
+job *svr_find_job(char *jobid)
+  {
+  return(NULL);
   }
