@@ -41,6 +41,17 @@ OVERVIEW
     
 ---------------------------------------------------------------------------
 WHAT'S NEW
+    
+    New in 3.0.6
+      This will be the final release for the 3.0-fixes branch of TORQUE. Support
+      for Moab users will end on December 31, 2012 from Adaptive  Computing for 
+      the 3.0-fixes line.
+
+      No new features have been added to 3.0.6. One bug fix takes care of a problem
+      introduced into 3.0.5 for interactive jobs. Interactive jobs would terminate
+      prematurely in 3.0.5. This is now fixed.
+
+      Please see the CHANGELOG for all bug fixes.
 
     New in 3.0.5:
       No new features were added to 3.0.5. Please see the CHANGELOG for
