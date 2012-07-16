@@ -1587,6 +1587,7 @@ int record_jobinfo(
 /*
  * svr_job_purge - purge job from system
  *
+ * pjob comes into this function locked. It must be released in this function.
  * The job is dequeued; the job control file, script file and any spooled
  * output files are unlinked, and the job structure is freed.
  * If we are MOM, the task files and checkpoint files are also
@@ -1673,7 +1674,10 @@ int svr_job_purge(
         }
       }
     else
+      {
+      pthread_mutex_unlock(pjob->ji_mutex);
       return PBSE_JOBNOTFOUND;
+      }
     }
 
   if ((job_substate != JOB_SUBSTATE_TRANSIN) &&

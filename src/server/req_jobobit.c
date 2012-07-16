@@ -1550,11 +1550,8 @@ int handle_complete_first_time(
 
   if (KeepSeconds <= 0)
     {
+    /* We have the job locked. It will come out from svr_job_purge unlocked */
     rc = svr_job_purge(pjob);
-
-    if (rc == PBSE_UNKJOBID)
-      pthread_mutex_unlock(pjob->ji_mutex);
-
     return(rc);
     }
 
@@ -1667,12 +1664,8 @@ int handle_complete_second_time(
     rc = PBSE_JOBWORKDELAY;
     }
   else
-    {
     rc = svr_job_purge(pjob);
 
-    if (rc == PBSE_UNKJOBID)
-      pthread_mutex_unlock(pjob->ji_mutex);
-    }
   return rc;
   } /* END handle_complete_second_time() */
 
