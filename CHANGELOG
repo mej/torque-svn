@@ -23,6 +23,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   b - fix a pbs_mom crash when using blcr. TRQ-1020.
   b - resources_used information now appears in the accounting log again
       TRQ-1083 and bugzilla 198. (backported from 4.1.1)
+  b - backported fix from 4.1-fixes. This fixes a queue deadlock when calling 
+      qstat -a <queue1> <queue2>
 
 4.0.2
   e - Change so init.d script variables get set based on the configure command.
