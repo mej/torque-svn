@@ -25,6 +25,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       TRQ-1083 and bugzilla 198. (backported from 4.1.1)
   b - backported fix from 4.1-fixes. This fixes a queue deadlock when calling 
       qstat -a <queue1> <queue2>
+  e - Added patch to buildutils/pbs_mkdirs.in which enables pbs_mkdirs to run
+      silently. Patch submitted by Bas van der Vlies. Bugzilla 199.
 
 4.0.2
   e - Change so init.d script variables get set based on the configure command.
