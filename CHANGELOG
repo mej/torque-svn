@@ -1,4 +1,4 @@
-c - crash     b - bug fix    e - enhancement    f - new feature  n - note
+ - crash     b - bug fix    e - enhancement    f - new feature  n - note
 
 4.0.3
   b - fix qdel -p all - was performing a qdel all. TRQ-947

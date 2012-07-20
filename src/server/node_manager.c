@@ -840,7 +840,6 @@ void *sync_node_jobs(
                   {
                   sprintf(log_buf, "%d  freeing %ld", rc, (long)preq);
                   log_record(PBSEVENT_DEBUG, PBS_EVENTCLASS_JOB, __func__, log_buf);
-                  free_br(preq);
                   }
                 }
               }
