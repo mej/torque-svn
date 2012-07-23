@@ -178,6 +178,7 @@ tlist_head svr_newjobs; /* jobs being sent to MOM */
 tlist_head svr_alljobs; /* all jobs under MOM's control */
 tlist_head mom_varattrs; /* variable attributes */
 int  termin_child = 0;  /* boolean - one or more children need to be terminated this iteration */
+int  exec_with_exec = 0;
 time_t  time_now = 0;
 time_t  last_poll_time = 0;
 extern tlist_head svr_requests;
@@ -383,6 +384,7 @@ static unsigned long setmempressdur(char *);
 #endif
 static unsigned long setreduceprologchecks(char *);
 static unsigned long setextpwdretry(char *);
+static unsigned long setexecwithexec(char *);
 static unsigned long setmaxupdatesbeforesending(char *);
 static unsigned long setthreadunlinkcalls(char *);
 unsigned long rppthrottle(char *value);
@@ -457,6 +459,7 @@ static struct specials
   { "thread_unlink_calls", setthreadunlinkcalls },
   { "attempt_to_make_dir", setattempttomakedir },
   { "ext_pwd_retry",       setextpwdretry },
+  { "exec_with_exec",      setexecwithexec },
   { "max_updates_before_sending", setmaxupdatesbeforesending },
   { NULL,                  NULL }
   };
@@ -1762,6 +1765,24 @@ static u_long settmpdir(
 
   return(1);
   }
+
+static u_long setexecwithexec(
+
+  char *value)
+
+  {
+  static char *id = "setexecwithexec";
+
+  log_record(PBSEVENT_SYSTEM, PBS_EVENTCLASS_SERVER, id, value);
+
+  if (!strncasecmp(value, "t", 1) || (value[0] == '1') || !strcasecmp(value, "on") )
+    exec_with_exec = 1;
+  else
+    exec_with_exec = 0;
+
+  return(1);
+  } /* END setexecwithexec() */
+
 
 static u_long setxauthpath(
 
