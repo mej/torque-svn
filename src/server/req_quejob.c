@@ -641,7 +641,7 @@ int req_quejob(
     /* use default queue */
     pque = get_dfltque();
 
-    rc   = PBSE_QUENODFLT;
+    rc = PBSE_QUENODFLT;
     }
   else
     {

@@ -128,6 +128,8 @@ void queue_route(pbs_queue *);
 /* Global Data */
 extern char *msg_routexceed;
 extern char *msg_err_malloc;
+extern char *msg_err_noqueue;
+extern int LOGLEVEL;
 
 /*
  * Add an entry to the list of bad destinations for a job.
@@ -508,6 +510,9 @@ int job_route(
   struct pbs_queue *qp = jobp->ji_qhdr;
   long              retry_time;
 
+  if (qp == NULL)
+    return(PBSE_QUENOEN);
+
   /* see if the job is able to be routed */
   switch (jobp->ji_qs.ji_state)
     {
@@ -650,6 +655,9 @@ void *reroute_job(
         job_abt(&pjob, pbse_to_txt(PBSE_ROUTEREJ));
       else if (rc == PBSE_ROUTEEXPD)
         job_abt(&pjob, msg_routexceed);
+      else if (rc == PBSE_QUENOEN)
+        job_abt(&pjob, msg_err_noqueue);
+
       }
     else if (pque != NULL)
       unlock_queue(pque, __func__, NULL, 0);
