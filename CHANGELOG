@@ -29,6 +29,7 @@
       silently. Patch submitted by Bas van der Vlies. Bugzilla 199.
   b - fix an error in parsing environment variables with commas, newlines, etc. TRQ-1113
       (backported from 4.1.1)
+  b - fix down_on_error for the server. TRQ-1074 (backported from 4.1.2)
 
 4.0.2
   e - Change so init.d script variables get set based on the configure command.
