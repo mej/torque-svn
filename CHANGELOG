@@ -45,6 +45,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   b - prevent pbs_server from spinning in select due to sockets in CLOSE_WAIT.
       TRQ-1161.
   b - fix array/queue deadlocks. Queues are now always locked before arrays. TRQ-1168.
+  b - TRQ-1116. mail is now sent on job start again.
 
 4.1.0
   e - make free_nodes() only look at nodes in the exec_host list and not examine
