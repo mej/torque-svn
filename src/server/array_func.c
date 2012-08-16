@@ -1792,6 +1792,14 @@ void update_array_statuses(
           }
         }
       }
+     
+    if (LOGLEVEL >= 7)
+      {
+      sprintf(log_buf, "%s: unlocking ai_mutex", __func__);
+      log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, __func__, log_buf);
+      }
+
+    pthread_mutex_unlock(pa->ai_mutex);
     
     if ((pjob = svr_find_job(pa->ai_qs.parent_id)) != NULL)
       {
@@ -1812,17 +1820,13 @@ void update_array_statuses(
         /* default to just calling the array queued */
         svr_setjobstate(pjob, JOB_STATE_QUEUED, pjob->ji_qs.ji_substate, FALSE);
         }
+
       unlock_ji_mutex(pjob, __func__, "2", LOGLEVEL);
       }
       
-    if (pa != owned)
+    if (pa == owned)
       {
-      pthread_mutex_unlock(pa->ai_mutex);
-      if(LOGLEVEL >= 7)
-        {
-        sprintf(log_buf, "%s: unlocked ai_mutex", __func__);
-        log_event(PBSEVENT_JOB, PBS_EVENTCLASS_JOB, __func__, log_buf);
-        }
+      pthread_mutex_lock(pa->ai_mutex);
       }
     }
   } /* END update_array_statuses() */
