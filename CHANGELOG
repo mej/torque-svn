@@ -46,6 +46,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       TRQ-1161.
   b - fix array/queue deadlocks. Queues are now always locked before arrays. TRQ-1168.
   b - TRQ-1116. mail is now sent on job start again.
+  b - TRQ-1118. Cray jobs are now recovered correctly after a restart.
 
 4.1.0
   e - make free_nodes() only look at nodes in the exec_host list and not examine
