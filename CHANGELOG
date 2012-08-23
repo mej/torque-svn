@@ -61,6 +61,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       handle returned by svr_connect()) was used. Replaced with svr_disconnect
   b - qdel'ing a running job in the cray environment was trying to communicate with the
       cray compute instead of the login node. This is now fixed. TRQ-1184.
+  b - Make it so that procct is never shown to Moab or users. TRQ-872.
 
 4.1.0
   e - make free_nodes() only look at nodes in the exec_host list and not examine
