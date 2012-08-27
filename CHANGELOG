@@ -64,6 +64,9 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
   b - Make it so that procct is never shown to Moab or users. TRQ-872.
   b - TRQ-1182. Fixed a problem where jobs with dependencies were deleted on
       the restart of pbs_server.
+  b - Fixed a memory leak when calling net_move. net_move allocates memory for args
+      and starts a thread on send_job. However, args were not getting released
+      in send_job.  TRQ-1199
 
 4.1.0
   e - make free_nodes() only look at nodes in the exec_host list and not examine
