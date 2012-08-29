@@ -1,5 +1,9 @@
 c - crash     b - bug fix    e - enhancement    f - new feature  n - note
 
+3.0.7
+  b - TRQ-1137. Fixed a problem where all jobs get deleted if Moab is configured
+      with SYNCJOBID=TRUE and ROOTPROXYJOBSUBMISSION set in the RMCFG flags.
+
 3.0.6
   e - Allow pbs_mom to change users group on stderr/stdout files. Enabled by configuring
       Torque with CFLAGS='-DRESETGROUP'. TRQ-908. (backported from 4.0.2)
