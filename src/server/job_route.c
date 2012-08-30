@@ -461,7 +461,7 @@ void *reroute_job(
   jobid = (char *)vp;
 
   if ((jobid != NULL) &&
-      ((pjob = svr_find_job(jobid)) != NULL))
+      ((pjob = svr_find_job(jobid, FALSE)) != NULL))
     {
     pque = get_jobs_queue(&pjob);
 

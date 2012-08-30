@@ -247,7 +247,7 @@ int req_stat_job(
       {
       type = tjstJob;
 
-      if ((pjob = svr_find_job(name)) == NULL)
+      if ((pjob = svr_find_job(name, FALSE)) == NULL)
         {
         rc = PBSE_UNKJOBID;
         }
@@ -457,7 +457,7 @@ static void req_stat_job_step2(
     if (cntl->sc_jobid[0] == '\0')
       pjob = NULL;
     else
-      pjob = svr_find_job(cntl->sc_jobid);
+      pjob = svr_find_job(cntl->sc_jobid, FALSE);
 
     while (1)
       {
@@ -467,7 +467,7 @@ static void req_stat_job_step2(
 
         if (type == tjstJob)
           {
-          pjob = svr_find_job(preq->rq_ind.rq_status.rq_id);
+          pjob = svr_find_job(preq->rq_ind.rq_status.rq_id, FALSE);
           }
         else if (type == tjstQueue)
           {
@@ -481,7 +481,7 @@ static void req_stat_job_step2(
             {
             if (pa->job_ids[job_array_index] != NULL)
               {
-              if ((pjob = svr_find_job(pa->job_ids[job_array_index])) != NULL)
+              if ((pjob = svr_find_job(pa->job_ids[job_array_index], FALSE)) != NULL)
                 {
                 unlock_ji_mutex(pjob, __func__, "2", LOGLEVEL);
                 break;
@@ -515,7 +515,7 @@ static void req_stat_job_step2(
             {
             if (pa->job_ids[job_array_index] != NULL)
               {
-              if ((pjob = svr_find_job(pa->job_ids[job_array_index])) != NULL)
+              if ((pjob = svr_find_job(pa->job_ids[job_array_index], FALSE)) != NULL)
                 {
                 unlock_ji_mutex(pjob, __func__, "3", LOGLEVEL);
                 break;
@@ -548,7 +548,7 @@ static void req_stat_job_step2(
 
         if (rc != 0)
           {
-          pjob = svr_find_job(job_id);
+          pjob = svr_find_job(job_id, FALSE);
 
           rc = 0;
 
@@ -597,7 +597,7 @@ static void req_stat_job_step2(
     }
 
   if (type == tjstJob)
-    pjob = svr_find_job(preq->rq_ind.rq_status.rq_id);
+    pjob = svr_find_job(preq->rq_ind.rq_status.rq_id, FALSE);
 
   else if (type == tjstQueue)
     pjob = next_job(cntl->sc_pque->qu_jobs,&iter);
@@ -617,7 +617,7 @@ static void req_stat_job_step2(
       {
       if (pa->job_ids[job_array_index] != NULL)
         {
-        if ((pjob = svr_find_job(pa->job_ids[job_array_index])) != NULL)
+        if ((pjob = svr_find_job(pa->job_ids[job_array_index], FALSE)) != NULL)
           {
           break;
           }
@@ -855,7 +855,7 @@ nextjob:
         {
         if (pa->job_ids[job_array_index] != NULL)
           {
-          if ((pjob = svr_find_job(pa->job_ids[job_array_index])) != NULL)
+          if ((pjob = svr_find_job(pa->job_ids[job_array_index], FALSE)) != NULL)
             {
             break;
             }
@@ -923,7 +923,7 @@ int stat_to_mom(
   char *job_momname = NULL;
   job *pjob = NULL;
 
-  if ((pjob = svr_find_job(job_id)) == NULL)
+  if ((pjob = svr_find_job(job_id, FALSE)) == NULL)
     return PBSE_JOBNOTFOUND;
 
   job_momaddr = pjob->ji_qs.ji_un.ji_exect.ji_momaddr;
@@ -1027,7 +1027,7 @@ void stat_update(
 
     while (pstatus != NULL)
       {
-      if ((pjob = svr_find_job(pstatus->brp_objname)) != NULL)
+      if ((pjob = svr_find_job(pstatus->brp_objname, FALSE)) != NULL)
         {
         sattrl = (svrattrl *)GET_NEXT(pstatus->brp_attr);
 
@@ -1071,7 +1071,7 @@ void stat_update(
       {
       /* we sent a stat request, but mom says it doesn't know anything about
          the job */
-      if ((pjob = svr_find_job(preq->rq_ind.rq_status.rq_id)) != NULL)
+      if ((pjob = svr_find_job(preq->rq_ind.rq_status.rq_id, FALSE)) != NULL)
         {
         /* job really isn't running any more - mom doesn't know anything about it
            this can happen if a diskless node reboots and the mom_priv/jobs
@@ -1162,7 +1162,7 @@ void poll_job_task(
 
   if (job_id != NULL)
     {
-    pjob  = svr_find_job(job_id);
+    pjob  = svr_find_job(job_id, FALSE);
     
     if (pjob != NULL)
       {
@@ -1540,7 +1540,7 @@ int req_stat_node(
       }
     }
 
-  if (!rc)
+  if (rc == PBSE_NONE)
     {
     /* SUCCESS */
 

@@ -690,7 +690,7 @@ int array_delete(
   if (pa->ai_qs.parent_id[0] != '\0')
     {
     job *pjob;
-    if ((pjob = svr_find_job(pa->ai_qs.parent_id)) != NULL)
+    if ((pjob = svr_find_job(pa->ai_qs.parent_id, FALSE)) != NULL)
       svr_job_purge(pjob);
     }
 
@@ -1217,7 +1217,7 @@ int delete_array_range(
       if (i >= pa->ai_qs.array_size)
         continue;
 
-      if ((pjob = svr_find_job(pa->job_ids[i])) == NULL)
+      if ((pjob = svr_find_job(pa->job_ids[i], FALSE)) == NULL)
         {
         free(pa->job_ids[i]);
         pa->job_ids[i] = NULL;
@@ -1307,7 +1307,7 @@ int delete_whole_array(
     if (pa->job_ids[i] == NULL)
       continue;
 
-    if ((pjob = svr_find_job(pa->job_ids[i])) == NULL)
+    if ((pjob = svr_find_job(pa->job_ids[i], FALSE)) == NULL)
       {
       free(pa->job_ids[i]);
       pa->job_ids[i] = NULL;
@@ -1397,7 +1397,7 @@ int hold_array_range(
         if (pa->job_ids[i] == NULL)
           continue;
 
-        if ((pjob = svr_find_job(pa->job_ids[i])) == NULL)
+        if ((pjob = svr_find_job(pa->job_ids[i], FALSE)) == NULL)
           {
           free(pa->job_ids[i]);
           pa->job_ids[i] = NULL;
@@ -1466,7 +1466,7 @@ int release_array_range(
       if (pa->job_ids[i] == NULL)
         continue;
 
-      if ((pjob = svr_find_job(pa->job_ids[i])) == NULL)
+      if ((pjob = svr_find_job(pa->job_ids[i], FALSE)) == NULL)
         {
         free(pa->job_ids[i]);
         pa->job_ids[i] = NULL;
@@ -1534,7 +1534,7 @@ int modify_array_range(
             (pa->job_ids[i] == NULL))
           continue;
 
-        if ((pjob = svr_find_job(pa->job_ids[i])) == NULL)
+        if ((pjob = svr_find_job(pa->job_ids[i], FALSE)) == NULL)
           {
           free(pa->job_ids[i]);
           pa->job_ids[i] = NULL;
@@ -1692,7 +1692,7 @@ void update_array_values(
             if (!strcmp(pa->job_ids[i], job_id))
               continue;
 
-            if ((pj = svr_find_job(pa->job_ids[i])) == NULL)
+            if ((pj = svr_find_job(pa->job_ids[i], TRUE)) == NULL)
               {
               free(pa->job_ids[i]);
               pa->job_ids[i] = NULL;
@@ -1764,7 +1764,7 @@ void update_array_statuses(
       {
       if (pa->job_ids[i] != NULL)
         {
-        if ((pj = svr_find_job(pa->job_ids[i])) == NULL)
+        if ((pj = svr_find_job(pa->job_ids[i], TRUE)) == NULL)
           {
           free(pa->job_ids[i]);
           pa->job_ids[i] = NULL;
@@ -1801,7 +1801,7 @@ void update_array_statuses(
 
     pthread_mutex_unlock(pa->ai_mutex);
     
-    if ((pjob = svr_find_job(pa->ai_qs.parent_id)) != NULL)
+    if ((pjob = svr_find_job(pa->ai_qs.parent_id, TRUE)) != NULL)
       {
       if (running > 0)
         {
