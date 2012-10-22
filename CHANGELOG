@@ -95,6 +95,8 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       thread" tries to remove them. This prevents a deadlock when on_job_exit and the 
       cleanup thread try to run at the same time. I also changed the time comparision
       in check_exiting_jobs to use like units for the time comparison. TRQ-1306
+  b - Fixed a deadlock caused by queue not getting released when jobs are aborted when
+      moving jobs from a routing queue to an execution queue. TRQ-1344.
 
 
 4.1.2
