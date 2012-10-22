@@ -97,6 +97,7 @@ c - crash     b - bug fix    e - enhancement    f - new feature  n - note
       in check_exiting_jobs to use like units for the time comparison. TRQ-1306
   b - Fixed a deadlock caused by queue not getting released when jobs are aborted when
       moving jobs from a routing queue to an execution queue. TRQ-1344.
+  c - Fix a double free if the same chan is stored on two tasks for a job. TRQ-1299.
 
 
 4.1.2
