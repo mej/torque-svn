@@ -116,7 +116,6 @@
 #include "ji_mutex.h"
 #include "queue_func.h" /*find_queuebyname */
 
-#define ROUTE_RETRY_TIME 10
 
 /* External functions called */
 int svr_movejob(job *, char *, int *, struct batch_request *, int);
@@ -276,7 +275,7 @@ int default_router(
     if (is_bad_dest(jobp, destination))
       continue;
 
-    switch (svr_movejob(jobp, destination, &local_errno, NULL, TRUE))
+    switch (svr_movejob(jobp, destination, &local_errno, NULL, FALSE))
       {
       case ROUTE_PERM_FAILURE: /* permanent failure */
 
@@ -484,20 +483,11 @@ int reroute_job(
     rc = job_route(pjob);
 
     if (rc == PBSE_ROUTEREJ)
-      {
-      unlock_queue(pque, __func__, "1", LOGLEVEL);
       job_abt(&pjob, pbse_to_txt(PBSE_ROUTEREJ));
-      }
     else if (rc == PBSE_ROUTEEXPD)
-      {
-      unlock_queue(pque, __func__, "1", LOGLEVEL);
       job_abt(&pjob, msg_routexceed);
-      }
     else if (rc == PBSE_QUENOEN)
-      {
-      unlock_queue(pque, __func__, "1", LOGLEVEL);
       job_abt(&pjob, msg_err_noqueue);
-      }
     }
 
   return(rc);      
@@ -539,7 +529,7 @@ void *queue_route(
     {
     sprintf(log_buf, "NULL queue name");
     log_err(-1, __func__, log_buf);
-    return(NULL);
+    pthread_exit(0);
     }
 
   if (LOGLEVEL >= 7)
@@ -557,7 +547,7 @@ void *queue_route(
     log_err(-1, __func__, log_buf);
     free(queue_name);
     pthread_mutex_unlock(reroute_job_mutex);
-    return(NULL);
+    pthread_exit(0);
     }
 
   while ((pjob = next_job(pque->qu_jobs,&iter)) != NULL)
@@ -565,7 +555,8 @@ void *queue_route(
     /* the second condition says we only want to try if routing
      * has been tried once - this is to let req_commit have the 
      * first crack at routing always */
-    if ((pjob->ji_qs.ji_un.ji_routet.ji_rteretry <= time_now - ROUTE_RETRY_TIME) &&
+    unlock_queue(pque, __func__, NULL, LOGLEVEL);
+    if ((pjob->ji_qs.ji_un.ji_routet.ji_rteretry <= time_now) &&
         (pjob->ji_qs.ji_un.ji_routet.ji_rteretry != 0))
       {
       reroute_job(pjob, pque);
@@ -573,12 +564,13 @@ void *queue_route(
       }
     else
       unlock_ji_mutex(pjob, __func__, "1", LOGLEVEL);
+    lock_queue(pque, __func__, NULL, LOGLEVEL);
     }
 
   free(queue_name);
-  unlock_queue(pque, __func__, NULL, 0);
+  unlock_queue(pque, __func__, NULL, LOGLEVEL);
   pthread_mutex_unlock(reroute_job_mutex);
-  return(NULL);
+  pthread_exit(0);
   } /* END queue_route() */
 
 
